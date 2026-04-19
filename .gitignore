@@ -1,0 +1,26 @@
+# E-commerce Security Demo - Gitignore
+# Exclude generated simulation data and artifacts
+
+# Simulation Output
+website/
+quarantine/
+backup/
+logs/
+
+# Optional: Shell script temporary files
+*.tmp
+*.log
+
+# System/IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# ClamAV Database (if updated locally)
+main.cvd
+daily.cvd
+bytecode.cvd
+freshclam.log
