@@ -7,11 +7,11 @@ rule RansomwareSimulator_Demo {
 
     strings:
         $sig1 = "RANSOMWARE_SIMULATOR_DEMO_SAFE" ascii
-        $sig2 = "RansomwareSimulator" ascii
+        // $sig2 = "RansomwareSimulator" ascii  // too generic, kept for reference only
         $sig3 = "ENCRYPTED_EXT = \".encrypted\"" ascii
 
     condition:
-        any of them
+        $sig1 and $sig3
 }
 
 rule EncryptedFilePattern {
