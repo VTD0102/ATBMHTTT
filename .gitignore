@@ -24,3 +24,8 @@ main.cvd
 daily.cvd
 bytecode.cvd
 freshclam.log
+
+# Ransomware demo sandbox artifacts
+ransomware-demo/attacker/sandbox/*.encrypted
+ransomware-demo/attacker/sandbox/.ransom_key
+ransomware-demo/backups/
