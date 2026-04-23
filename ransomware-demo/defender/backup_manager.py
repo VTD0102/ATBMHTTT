@@ -33,7 +33,7 @@ class BackupManager:
     def restore(self, backup_path: str, restore_dir: str):
         os.makedirs(restore_dir, exist_ok=True)
         with tarfile.open(backup_path, "r:gz") as tar:
-            tar.extractall(path=restore_dir)
+            tar.extractall(path=restore_dir, filter='data')
 
         extracted_subdir = os.path.join(restore_dir, os.path.basename(self.source_dir))
         if os.path.isdir(extracted_subdir):
