@@ -3,7 +3,7 @@ import math
 from typing import List, Dict
 
 SUSPICIOUS_EXTENSIONS = {".encrypted", ".locked", ".crypto", ".crypt", ".enc"}
-ENTROPY_THRESHOLD = 7.5
+ENTROPY_THRESHOLD = 5.5
 SIMULATOR_SIGNATURE = "RANSOMWARE_SIMULATOR_DEMO_SAFE"
 
 
@@ -76,10 +76,10 @@ class RansomwareScanner:
             print("[SCANNER] No threats detected.")
             return
         print(f"\n[SCANNER] {len(self.findings)} threat(s) found:\n")
-        for i, f in enumerate(self.findings, 1):
-            print(f"  [{i}] {f['severity']} | {f['reason']}")
-            print(f"       File: {f['file']}")
-            print(f"       Detail: {f['detail']}\n")
+        for i, finding in enumerate(self.findings, 1):
+            print(f"  [{i}] {finding['severity']} | {finding['reason']}")
+            print(f"       File: {finding['file']}")
+            print(f"       Detail: {finding['detail']}\n")
 
 
 if __name__ == "__main__":
