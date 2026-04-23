@@ -15,7 +15,7 @@ class RansomwareSimulator:
         self._key = None
 
     def _get_or_create_key(self) -> bytes:
-        if self._key:
+        if self._key is not None:
             return self._key
         if os.path.exists(self.key_file):
             with open(self.key_file, "rb") as f:
@@ -32,6 +32,9 @@ class RansomwareSimulator:
         return real_path.startswith(real_sandbox + os.sep) or real_path == real_sandbox
 
     def encrypt(self):
+        if not os.path.isdir(self.sandbox_dir):
+            print(f"[ERROR] Sandbox directory not found: {self.sandbox_dir}")
+            sys.exit(1)
         key = self._get_or_create_key()
         fernet = Fernet(key)
 
@@ -57,6 +60,9 @@ class RansomwareSimulator:
         print(f"[SIMULATOR] Key saved to: {self.key_file}")
 
     def decrypt(self):
+        if not os.path.isdir(self.sandbox_dir):
+            print(f"[ERROR] Sandbox directory not found: {self.sandbox_dir}")
+            sys.exit(1)
         if not os.path.exists(self.key_file):
             print("[ERROR] Key file not found. Cannot decrypt.")
             sys.exit(1)
@@ -74,7 +80,11 @@ class RansomwareSimulator:
 
                 with open(enc_path, "rb") as f:
                     encrypted_data = f.read()
-                data = fernet.decrypt(encrypted_data)
+                try:
+                    data = fernet.decrypt(encrypted_data)
+                except Exception as e:
+                    print(f"[ERROR] Failed to decrypt {enc_path}: {e}")
+                    continue
 
                 original_path = enc_path[:-len(self.ENCRYPTED_EXT)]
                 with open(original_path, "wb") as f:
