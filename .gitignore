@@ -18,6 +18,10 @@ Thumbs.db
 .idea/
 *.swp
 *~
+__pycache__/
+*.pyc
+*.pyd
+
 
 # ClamAV Database (if updated locally)
 main.cvd
