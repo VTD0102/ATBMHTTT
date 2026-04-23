@@ -1,182 +1,178 @@
-# ShopSecure — Demo Bảo Vệ Malware cho Hệ Thống Thương Mại Điện Tử
+# Phòng Chống Mã Độc trong Hệ Thống Thương Mại Điện Tử
 
-Một bản demo hoàn chỉnh trên terminal cho bài thuyết trình **"Bảo Vệ Malware trong Hệ Thống Thương Mại Điện Tử"**.
-Minh họa quét ClamAV, mã hóa AES-256, sao lưu tự động và tạo báo cáo HTML.
+Demo học thuật cho chủ đề **An Toàn Thông Tin (ATTT)** và **Bảo Mật Dữ Liệu (BMDL)** — minh họa ransomware simulator, phát hiện, giải mã và backup trong môi trường TMĐT.
 
 ---
 
-## Bắt Đầu Nhanh (3 lệnh)
+## Tổng Quan
+
+Dự án gồm hai phần độc lập:
+
+| Phần | Mô tả |
+|------|-------|
+| `ransomware-demo/` | Demo 2 chiều: ransomware simulator + hệ thống phòng thủ |
+| `secure_ecommerce.sh` | Demo quét ClamAV, mã hóa AES-256, backup tự động |
+
+---
+
+## Phần 1 — Ransomware Demo (Attacker vs Defender)
+
+> ⚠️ **MÔI TRƯỜNG HỌC THUẬT — DEMO ONLY**
+> Simulator chỉ mã hóa file trong thư mục `sandbox/`, không đụng đến system file.
+
+### Cấu Trúc
+
+```
+ransomware-demo/
+├── attacker/
+│   ├── ransomware_simulator.py   # Mã hóa Fernet, sandbox-only
+│   ├── ransom_note.html          # UI màn hình "bị khóa" (đếm ngược 72h)
+│   └── sandbox/                  # Thư mục bị "tấn công"
+│       ├── invoice_2024.txt
+│       ├── customer_data.csv
+│       └── contract.txt
+├── defender/
+│   ├── scanner.py                # Phát hiện: entropy + extension + signature
+│   ├── decryptor.py              # Giải mã với saved key
+│   ├── backup_manager.py         # Backup tar.gz + restore
+│   └── rules/ransomware.yar     # YARA rules (3 rules)
+├── tests/                        # 10 tests, tất cả pass
+├── demo_run.sh                   # Script chạy full demo 9 bước
+└── requirements.txt
+```
+
+### Cài Đặt
 
 ```bash
-# 1. Cài đặt tất cả các phụ thuộc (yêu cầu sudo)
+cd ransomware-demo
+pip install -r requirements.txt
+```
+
+### Chạy Demo (9 Bước Tự Động)
+
+```bash
+cd ransomware-demo
+bash demo_run.sh
+```
+
+Demo sẽ thực hiện tuần tự:
+
+| Bước | Hành động | Công cụ |
+|------|-----------|---------|
+| 1 | Backup dữ liệu sandbox | `backup_manager.py` |
+| 2 | Hiển thị trạng thái TRƯỚC tấn công | `ls` |
+| 3 | **Mã hóa** (attacker) | `ransomware_simulator.py` |
+| 4 | Hiển thị trạng thái SAU tấn công | `ls` |
+| 5 | Quét phát hiện ransomware | `scanner.py` |
+| 6 | Quét YARA rules | `yara-python` |
+| 7 | Mở màn hình "bị khóa" trong browser | `ransom_note.html` |
+| 8 | **Giải mã** (defender) | `decryptor.py` |
+| 9 | Hiển thị trạng thái SAU giải mã | `ls` |
+
+### Chạy Từng Thành Phần
+
+```bash
+cd ransomware-demo
+
+# Attacker: mã hóa sandbox
+python3 attacker/ransomware_simulator.py
+
+# Defender: quét phát hiện
+python3 defender/scanner.py attacker/sandbox/
+
+# Defender: giải mã
+python3 defender/decryptor.py attacker/sandbox/
+
+# Defender: backup
+python3 defender/backup_manager.py backup
+
+# Xem màn hình ransom note
+firefox attacker/ransom_note.html
+```
+
+### Chạy Tests
+
+```bash
+cd ransomware-demo
+python3 -m pytest tests/ -v
+# 10 passed
+```
+
+### Cơ Chế Phát Hiện (Scanner)
+
+| Phương pháp | Mô tả | Độ chính xác |
+|-------------|-------|-------------|
+| Extension check | Phát hiện `.encrypted`, `.locked`, `.crypto` | HIGH |
+| Entropy analysis | File mã hóa có entropy > 5.5 bits | MEDIUM |
+| Signature detection | Tìm `RANSOMWARE_SIMULATOR_DEMO_SAFE` | CRITICAL |
+
+### YARA Rules
+
+| Rule | Phát hiện | Severity |
+|------|-----------|---------|
+| `RansomwareSimulator_Demo` | Simulator source code | CRITICAL |
+| `EncryptedFilePattern` | Fernet token header | HIGH |
+| `RansomNoteHTML` | Ransom note HTML | HIGH |
+
+### Tech Stack
+
+| Thư viện | Mục đích |
+|----------|---------|
+| `cryptography` (Fernet) | Mã hóa symmetric AES-128-CBC |
+| `yara-python` | Pattern matching rules |
+| `pytest` | Test suite |
+
+---
+
+## Phần 2 — ShopSecure (ClamAV + GPG)
+
+Demo quét antivirus và mã hóa dữ liệu TMĐT.
+
+### Yêu Cầu
+
+- Ubuntu 20.04 / 22.04 / 24.04
+- `sudo` access
+
+### Chạy Nhanh
+
+```bash
+# Cài đặt dependencies
 sudo bash setup.sh
 
-# 2. Tạo dữ liệu mô phỏng thương mại điện tử
+# Tạo dữ liệu mô phỏng
 bash generate_data.sh
 
-# 3. Chạy bản demo bảo mật đầy đủ
+# Chạy demo
 bash secure_ecommerce.sh
 ```
 
----
-
-## Cấu Trúc Thư Mục
+**Tùy chọn:**
 
 ```bash
-.
-├── website/              # Dữ liệu mô phỏng
-│   ├── database/         # MySQL dump (users.sql)
-│   └── customer-data/    # PII giả: customers.csv, payment_tokens.json
-├── quarantine/           # Các tệp bị nhiễm được di chuyển tại đây
-├── backup/
-│   ├── daily/            # Khu vực tổ chức rsync
-│   └── encrypted/        # Sao lưu mã hóa AES-256 cuối cùng (.gpg)
-├── logs/                 # Nhật ký quét, cảnh báo, mã hóa, sao lưu
-└── scripts/              # (Dành cho các tập lệnh tùy chỉnh)
+bash secure_ecommerce.sh --fast     # Bỏ delay (nhanh hơn)
+bash secure_ecommerce.sh --verbose  # Hiện output chi tiết
 ```
+
+### Quy Trình (5 Bước)
+
+| Bước | Hành động | Công cụ |
+|------|-----------|---------|
+| 1 | Quét malware | ClamAV |
+| 2 | Cách ly mối đe dọa | bash + mv |
+| 3 | Mã hóa dữ liệu nhạy cảm | GPG AES-256 |
+| 4 | Backup mã hóa | rsync + tar + GPG |
+| 5 | Báo cáo HTML | Python |
 
 ---
 
-## Tùy Chọn Tập Lệnh
+## Nguyên Tắc An Toàn
 
-| Cờ         | Mô Tả                                      |
-|-------------|---------------------------------------------|
-| `--fast`    | Bỏ qua tất cả độ trễ (chạy thử nhanh)       |
-| `--verbose` | In đầu ra lệnh thô vào terminal             |
-| `--help`    | Hiển thị cách sử dụng                       |
+Dự án tuân theo nguyên tắc demo học thuật an toàn:
 
-```bash
-# Chế độ nhanh (không trễ, tốt cho kiểm tra)
-bash secure_ecommerce.sh --fast
-
-# Verbose + nhanh
-bash secure_ecommerce.sh --fast --verbose
-```
-
----
-
-## Quy Trình Demo (5 Bước)
-
-| Bước | Hành động               | Công cụ         | Thời gian |
-|------|-------------------------|-----------------|-----------|
-| 1    | Quét malware            | ClamAV          | ~30 s     |
-| 2    | Cách ly mối đe dọa      | bash + mv       | ~15 s     |
-| 3    | Mã hóa dữ liệu nhạy cảm | GPG AES-256     | ~30 s     |
-| 4    | Sao lưu mã hóa          | rsync + tar + GPG | ~45 s   |
-| 5    | Bảng điều khiển HTML    | Python/xdg      | ~20 s     |
-
----
-
-## Những Gì Được Phát Hiện
-
-Bản demo sử dụng **Tệp Thử Nghiệm Chống Virus EICAR Tiêu Chuẩn** — một chuỗi được công nhận trên toàn thế giới,
-hoàn toàn vô hại mà tất cả các engine antivirus đều gắn cờ như virus thử nghiệm.
-
-```
-Tệp:    free_software.exe
-Virus:  Eicar-Signature (tên ClamAV)
-Hành động: Di chuyển đến quarantine/
-```
-
-> EICAR **không phải** là phần mềm độc hại thực sự. Nó là tiêu chuẩn thử nghiệm chính thức (eicar.org).
-
----
-
-## Công Cụ Được Sử Dụng
-
-| Công cụ    | Mục đích                              |
-|------------|---------------------------------------|
-| ClamAV     | Quét antivirus nguồn mở              |
-| GPG        | Mã hóa đối xứng AES-256              |
-| tar + gzip | Nén lưu trữ                          |
-| rsync      | Đồng bộ sao lưu                      |
-| sha256sum  | Xác minh tính toàn vẹn               |
-| pv         | Trực quan hóa thanh tiến trình        |
-| figlet     | Biểu ngữ nghệ thuật ASCII (tùy chọn) |
-
----
-
-## Chạy Lại Bản Demo
-
-Các tập lệnh là idempotent — `generate_data.sh` xóa và tạo lại tất cả dữ liệu mỗi lần chạy:
-
-```bash
-bash generate_data.sh && bash secure_ecommerce.sh
-```
-
----
-
-## Yêu Cầu
-
-- Ubuntu 20.04 / 22.04 / 24.04 (hoặc dựa trên Debian)
-- Truy cập Internet cho `sudo bash setup.sh` (cập nhật DB ClamAV)
-- ~100 MB không gian đĩa
-
----
-
-## Tệp Đầu Ra
-
-Sau khi chạy đầy đủ, bạn sẽ tìm thấy trong thư mục gốc:
-
-```
-logs/
-├── scan_<timestamp>.log         # Kết quả quét từng tệp
-├── alert_<timestamp>.log        # Cảnh báo cách ly
-├── encryption_<timestamp>.log   # Hash tệp được mã hóa
-├── backup_<timestamp>.log       # Vị trí sao lưu + hash
-└── security_report.html         # Bảng điều khiển tương tác (tự động mở)
-```
-
----
-
-## Chi Tiết Thêm
-
-### Dữ Liệu Giả Được Tạo
-
-- **6 tệp sạch:** hình ảnh sản phẩm, đơn đặt hàng, hóa đơn, nhãn vận chuyển
-- **1 tệp EICAR:** Chuỗi kiểm tra malware tiêu chuẩn ngành (100% an toàn)
-- **1 SQL dump:** Bảng người dùng và đơn đặt hàng mô phỏng
-- **2 tệp PII:** CSV khách hàng có tên, email, số điện thoại, thẻ giả (4111-1111-1111-1111)
-- **1 JSON:** Token thanh toán mô phỏng
-
-### Đầu Ra Màu Sắc
-
-```
-🟢 Xanh   = THÀNH CÔNG, tệp sạch
-🔴 Đỏ     = MALWARE PHÁT HIỆN, lỗi
-🟡 Vàng   = CẢNH BÁO, đang xử lý
-🔵 Xanh lam = THÔNG TIN
-```
-
-### Tính Năng Đặc Biệt
-
-- ✅ Thanh tiến trình cho mỗi bước
-- ✅ Dấu thời gian cho mỗi hành động
-- ✅ Bảng tóm tắt với ký tự vẽ hộp
-- ✅ Báo cáo HTML có thể tương tác
-- ✅ Xác minh tính toàn vẹn SHA-256
-- ✅ Có thể chạy nhiều lần
-- ✅ Khoảng 2-3 phút runtime (hoàn hảo cho video)
-
----
-
-## Bắt Đầu
-
-```bash
-# Bước 1: Cài đặt (yêu cầu sudo)
-sudo bash setup.sh
-
-# Bước 2: Tạo dữ liệu và chạy demo
-bash generate_data.sh && bash secure_ecommerce.sh
-```
-
----
-
-## Cho Quay Video Thuyết Trình
-
-- Sử dụng `--fast` để loại bỏ độ trễ: `bash secure_ecommerce.sh --fast`
-- Dùng `--verbose` để xem chi tiết lệnh
-- Báo cáo HTML tự động mở trong trình duyệt
-- Nhật ký lưu trong thư mục `logs/`
-
-**Thời gian chạy:** 2-3 phút (với chế độ bình thường, các tệp log được lưu lại)
+| Thành phần | Cách triển khai an toàn |
+|-----------|------------------------|
+| Ransomware simulator | Chỉ chạy trong `sandbox/`, hardcoded path check |
+| Key mã hóa | Lưu local, không gửi đi đâu |
+| Safety marker | `SIMULATOR_SIGNATURE` để scanner tự detect |
+| Mẫu malware | EICAR test string (tiêu chuẩn ISO, vô hại) |
+| Phạm vi chạy | Local machine, không network propagation |
