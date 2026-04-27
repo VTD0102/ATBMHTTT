@@ -39,6 +39,25 @@ python3 -m pytest tests/test_scanner.py -v
 python3 -m pytest tests/test_backup.py -v
 ```
 
+### Social Engineering Demo (ProManager fake app)
+
+```bash
+cd social-engineering
+
+# Kịch bản 1 — chỉ tấn công (nạn nhân chạy app, file bị mã hóa)
+bash demo_manager.sh --attack-only
+
+# Kịch bản 2 — có phòng thủ (static + behavioral defense chặn lại)
+bash demo_manager.sh --with-defender
+
+# Chạy thủ công từng phần
+python3 attacker/fake_manager.py        # mở GUI ProManager giả
+bash demo_social.sh                     # kịch bản tấn công đầy đủ
+```
+
+> **Lưu ý:** `demo_manager.sh` tự backup `victim_sandbox/` trước mỗi lần chạy,
+> có thể restore lại sau demo.
+
 ### ShopSecure Shell Demo
 
 ```bash
