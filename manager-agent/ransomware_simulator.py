@@ -5,6 +5,8 @@ from cryptography.fernet import Fernet
 # SAFETY MARKER — scanner/YARA will detect this string
 SIMULATOR_SIGNATURE = "RANSOMWARE_SIMULATOR_DEMO_SAFE"
 
+_SKIP_EXTENSIONS = {'.exe', '.py', '.sh', '.bat', '.spec', '.pyz', '.pkg', '.so', '.dll'}
+
 class RansomwareSimulator:
     ENCRYPTED_EXT = ".encrypted"
 
@@ -40,7 +42,8 @@ class RansomwareSimulator:
 
         for root, _, files in os.walk(self.sandbox_dir):
             for filename in files:
-                if filename.endswith(self.ENCRYPTED_EXT) or filename == ".ransom_key":
+                ext = os.path.splitext(filename)[1].lower()
+                if filename.endswith(self.ENCRYPTED_EXT) or filename == ".ransom_key" or ext in _SKIP_EXTENSIONS:
                     continue
                 filepath = os.path.join(root, filename)
                 if not self._is_inside_sandbox(filepath):

@@ -1,0 +1,59 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --indigo:  #6366f1;
+  --purple:  #8b5cf6;
+  --green:   #10b981;
+  --amber:   #f59e0b;
+  --bg:      #ffffff;
+  --bg2:     #f8fafc;
+  --bg3:     #f1f5f9;
+  --border:  #e2e8f0;
+  --text:    #0f172a;
+  --muted:   #64748b;
+  --light:   #94a3b8;
+  --grad:    linear-gradient(135deg, #6366f1, #8b5cf6);
+  --shadow:  0 4px 24px rgba(99,102,241,.12);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--text); background: var(--bg); line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 20px; border-radius: 8px; font-size: 14px;
+  font-weight: 600; cursor: pointer; border: none;
+  text-decoration: none; transition: all .2s; white-space: nowrap;
+}
+.btn-primary { background: var(--grad); color: #fff; box-shadow: var(--shadow); }
+.btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+.btn-outline { background: #fff; color: var(--indigo); border: 1.5px solid var(--indigo); }
+.btn-outline:hover { background: #ede9fe; }
+.btn-ghost { background: transparent; color: var(--muted); }
+.btn-ghost:hover { color: var(--text); background: var(--bg3); }
+.btn-lg { padding: 13px 28px; font-size: 15px; border-radius: 10px; }
+.btn-white { background: #fff; color: var(--indigo); font-weight: 700; }
+.btn-white:hover { background: #f1f5f9; transform: translateY(-1px); }
+.btn-ghost-white { background: transparent; color: rgba(255,255,255,.8); border: 1.5px solid rgba(255,255,255,.28); }
+.btn-ghost-white:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+.section-tag {
+  display: inline-block; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--indigo); background: #ede9fe;
+  padding: 4px 12px; border-radius: 6px; margin-bottom: 14px;
+}
+.section-title {
+  font-size: clamp(26px, 4vw, 40px); font-weight: 800;
+  letter-spacing: -.025em; line-height: 1.15; margin: 0 auto 12px;
+}
+.section-sub { font-size: 17px; color: var(--muted); margin: 0 auto 48px; }
+.text-center { text-align: center; }
+.gradient-text {
+  background: var(--grad); -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent; background-clip: text;
+}

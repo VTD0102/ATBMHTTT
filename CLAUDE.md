@@ -4,111 +4,121 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Academic security demo project (ATTT/BMDL — An Toàn Thông Tin / Bảo Mật Dữ Liệu) with two independent parts:
+Academic security demo project (ATTT/BMDL — An Toàn Thông Tin / Bảo Mật Dữ Liệu). Three active folders:
 
-1. **`ransomware-demo/`** — Python-based attacker vs. defender simulation (Fernet encryption, YARA rules, entropy scanner)
-2. **Root shell scripts** — ClamAV + GPG AES-256 e-commerce security demo (`secure_ecommerce.sh`)
+| Folder | Vai trò |
+|--------|---------|
+| `manager-agent/` | Mã độc — fake ProManager Suite GUI + ransomware engine |
+| `shop_data/` | Dữ liệu nạn nhân — file TMĐT bị mã hóa |
+| `defender/` | Phần mềm bảo vệ — scanner, backup, GUI defender |
+
+Also contains `landing-web/` (React + Vite marketing page serving the exe download).
 
 ## Commands
 
-### Ransomware Demo (Python)
+### Manager-Agent (Attack side)
 
 ```bash
-cd ransomware-demo
+# Run the fake ProManager GUI (attacker)
+python3 manager-agent/fake_manager.py
 
-# Install dependencies
-pip install -r requirements.txt
+# Run the standalone ransom note
+python3 manager-agent/fake_ransom.py
 
-# Run full 9-step demo automatically
-bash demo_run.sh
+# Encrypt shop_data manually
+python3 manager-agent/ransomware_simulator.py
 
-# Run individual components
-python3 attacker/ransomware_simulator.py          # encrypt sandbox
-python3 attacker/ransomware_simulator.py decrypt  # decrypt sandbox
-python3 defender/scanner.py attacker/sandbox/    # detect threats
-python3 defender/decryptor.py attacker/sandbox/  # restore files
-python3 defender/backup_manager.py backup         # create backup
-python3 defender/backup_manager.py list           # list backups
+# Decrypt shop_data manually
+python3 manager-agent/ransomware_simulator.py decrypt
 
-# Run all tests
-python3 -m pytest tests/ -v
-
-# Run a single test file
-python3 -m pytest tests/test_simulator.py -v
-python3 -m pytest tests/test_scanner.py -v
-python3 -m pytest tests/test_backup.py -v
+# Build the exe (requires python3.12 + pyinstaller)
+python3.12 -m PyInstaller --onefile \
+    --name ProManagerSuite.exe \
+    --hidden-import fake_ransom \
+    --hidden-import ransomware_simulator \
+    --hidden-import cryptography.fernet \
+    --distpath manager-agent \
+    manager-agent/fake_manager.py
+# Then copy to landing-web/public/ for the web download
+cp manager-agent/ProManagerSuite.exe landing-web/public/
 ```
 
-### Social Engineering Demo (ProManager fake app)
+### Defender (Defense side)
 
 ```bash
-cd social-engineering
+# Launch the GUI defender (scanner + backup)
+python3 defender/defender_gui.py
 
-# Kịch bản 1 — chỉ tấn công (nạn nhân chạy app, file bị mã hóa)
-bash demo_manager.sh --attack-only
-
-# Kịch bản 2 — có phòng thủ (static + behavioral defense chặn lại)
-bash demo_manager.sh --with-defender
-
-# Chạy thủ công từng phần
-python3 attacker/fake_manager.py        # mở GUI ProManager giả
-bash demo_social.sh                     # kịch bản tấn công đầy đủ
+# CLI tools
+python3 defender/scanner.py shop_data/           # detect encrypted files
+python3 defender/decryptor.py shop_data/         # restore files
+python3 defender/backup_manager.py               # create backup of shop_data
+python3 defender/backup_manager.py list          # list backups
+python3 defender/backup_manager.py restore <path>
+python3 defender/static_analyzer.py manager-agent/fake_manager.py
+python3 defender/behavior_monitor.py             # real-time file watcher
 ```
 
-> **Lưu ý:** `demo_manager.sh` tự backup `victim_sandbox/` trước mỗi lần chạy,
-> có thể restore lại sau demo.
-
-### ShopSecure Shell Demo
+### Landing Page (React + Vite)
 
 ```bash
-# Install system dependencies (ClamAV, GPG, rsync) — requires sudo
-sudo bash setup.sh
-
-# Generate mock e-commerce data
-bash generate_data.sh
-
-# Run the full security demo
-bash secure_ecommerce.sh
-bash secure_ecommerce.sh --fast     # skip delays
-bash secure_ecommerce.sh --verbose  # detailed output
+cd landing-web
+npm install
+npm run dev      # dev server at localhost:5173
+npm run build    # production build to dist/
 ```
+
+> The exe download link is `/ProManagerSuite.exe` — served from `landing-web/public/ProManagerSuite.exe`.
 
 ## Architecture
 
-### Ransomware Demo (`ransomware-demo/`)
+### Attack Flow
 
 ```
-ATTACKER SIDE                    DEFENDER SIDE
-─────────────────                ─────────────────────────────
-attacker/
-  ransomware_simulator.py        defender/
-    → Fernet (AES-128-CBC)         scanner.py
-    → sandbox-only isolation         → entropy threshold (>7.5)
-    → key saved to .ransom_key       → extension check (.encrypted)
-    → emits SIMULATOR_SIGNATURE      → signature string detection
-  ransom_note.html               
-    → countdown UI (72h)           rules/ransomware.yar
-    → demo unlock code               → RansomwareSimulator_Demo
-    → "DEMO ONLY" badge              → EncryptedFilePattern (Fernet header)
-                                     → RansomNoteHTML
-                                   decryptor.py
-                                     → Fernet decrypt with .ransom_key
-                                   backup_manager.py
-                                     → tar.gz archive + restore
+Victim downloads ProManagerSuite.exe from landing-web
+  → Runs exe (ELF, 14 MB, built with PyInstaller)
+  → fake_manager.py: Activation screen (white/indigo theme)
+      → API key entry → "Verifying..." fullscreen
+      → Dashboard (fake PM app, sidebar + project cards)
+      → After 10s: triggers fake_ransom.py
+  → fake_ransom.py: Fullscreen ransom note
+      → 59,000,000 VND demand, countdown timer
+      → Meanwhile: ransomware_simulator.py encrypts files
+        in exe's own directory (→ .encrypted)
 ```
 
-**Safety invariant:** `RansomwareSimulator._is_inside_sandbox()` checks `os.path.realpath()` — the simulator cannot touch files outside `attacker/sandbox/`. The string `RANSOMWARE_SIMULATOR_DEMO_SAFE` is embedded as `SIMULATOR_SIGNATURE` so the scanner can always self-detect.
+### Defender Architecture
 
-**Module layout:** `attacker/` and `defender/` are Python packages (each has `__init__.py`). Tests use `sys.path.insert(0, parent_dir)` to import them without installation.
+```
+defender/
+  defender_gui.py      — Tkinter GUI: Dashboard, Scanner, Backup, Log panels
+  scanner.py           — CLI entropy + extension scanner (threshold >7.5)
+  decryptor.py         — Fernet decrypt with .ransom_key
+  backup_manager.py    — tar.gz backup + restore
+  static_analyzer.py   — static analysis before execution
+  behavior_monitor.py  — real-time inotify file watcher
+  rules/ransomware.yar — YARA rules (3 rules)
+```
 
-### Shell Demo (root level)
+**defender_gui.py detection logic:**
+- `CRITICAL`: filename contains known bad pattern (`promanagersuite`, `fake_manager`, `ransomware`, …)
+- `HIGH`: executable with Shannon entropy > 7.2 bits (packed/bundled)
+- `MEDIUM`: executable with entropy 6.5–7.2 bits
+- String scan for `.py`/`.sh` files: flags `RANSOMWARE_SIMULATOR_DEMO_SAFE`, `fernet.encrypt`, etc.
 
-`secure_ecommerce.sh` runs a 5-step pipeline: ClamAV scan → quarantine infected files → GPG AES-256 encryption of sensitive data → rsync+tar+GPG backup → HTML report generation. It creates `website/`, `quarantine/`, `backup/`, and `logs/` directories relative to `$BASE_DIR`.
+### Ransomware Simulator Safety
+
+`RansomwareSimulator._is_inside_sandbox()` uses `os.path.realpath()` to ensure files outside the sandbox directory cannot be touched.
+
+**Skip extensions:** `.exe .py .sh .bat .spec .pyz .pkg .so .dll` — the exe never encrypts itself.
+
+**Key file:** `.ransom_key` saved alongside encrypted files; used by `decryptor.py` to restore.
 
 ## Key Details
 
 - **Python version:** 3.10+ (uses `tarfile.extractall(filter='data')` for 3.14 compatibility)
-- **Test count:** 10 tests across 3 files, all must pass
-- **YARA rules file:** `ransomware-demo/defender/rules/ransomware.yar` — 3 rules targeting simulator source, Fernet token headers, and ransom note HTML
-- **Entropy threshold:** Scanner flags files with Shannon entropy > 7.5 bits (after reading first 4096 bytes)
-- **Demo unlock code for ransom note UI:** `DEMO-SAFE-2024-TMDT`
+- **Exe build:** python3.12 + PyInstaller `--onefile`; output is ELF binary named `ProManagerSuite.exe`
+- **Frozen exe path:** When run as exe, `VICTIM_SANDBOX = os.path.dirname(sys.executable)` (encrypts its own folder, not `shop_data/`)
+- **YARA rules:** `defender/rules/ransomware.yar` — 3 rules targeting simulator source, Fernet token headers, ransom note HTML
+- **Demo unlock code for ransom note:** `DEMO-SAFE-2024-TMDT`
+- **Backup dir:** `backups/` at repo root (created automatically)
