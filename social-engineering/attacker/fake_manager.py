@@ -77,15 +77,30 @@ class ProManagerApp:
 
         tk.Label(f, text='API License Key', font=FONT_SMALL, bg=BG, fg=FG_DIM).pack(anchor='w')
         self._key_var = tk.StringVar()
+        entry_border = tk.Frame(f, bg=BG3, padx=1, pady=1)
+        entry_border.pack(fill='x', pady=(4, 0))
         entry = tk.Entry(
-            f, textvariable=self._key_var, font=FONT_MONO, bg=BG2, fg=FG,
-            insertbackground=FG, relief='flat', bd=0,
-            highlightthickness=1, highlightbackground=BG3, highlightcolor=ACCENT,
+            entry_border, textvariable=self._key_var, font=FONT_MONO,
+            bg=BG2, fg=FG_MUT, insertbackground=FG,
+            relief='flat', bd=4,
         )
-        entry.pack(fill='x', ipady=6, pady=(4, 0))
+        entry.pack(fill='x')
         entry.insert(0, 'sk-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
-        entry.config(fg=FG_MUT)
-        entry.bind('<FocusIn>', lambda e: (entry.delete(0, 'end'), entry.config(fg=FG)))
+
+        def _on_focus_in(e):
+            if entry.get() == 'sk-xxxx-xxxx-xxxx-xxxxxxxxxxxx':
+                entry.delete(0, 'end')
+                entry.config(fg=FG)
+            entry_border.config(bg=ACCENT)
+
+        def _on_focus_out(e):
+            if not entry.get():
+                entry.insert(0, 'sk-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+                entry.config(fg=FG_MUT)
+            entry_border.config(bg=BG3)
+
+        entry.bind('<FocusIn>', _on_focus_in)
+        entry.bind('<FocusOut>', _on_focus_out)
         entry.bind('<Return>', lambda e: self._on_activate())
 
         self._error_var = tk.StringVar()
@@ -113,7 +128,7 @@ class ProManagerApp:
 
     def _on_activate(self):
         key = self._key_var.get().strip()
-        if not key or key == 'sk-xxxx-xxxx-xxxx-xxxxxxxxxxxx':
+        if not key or key.startswith('sk-xxxx'):
             self._error_var.set('Please enter your API key.')
             return
         self._error_var.set('')
