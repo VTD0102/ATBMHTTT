@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Your API Key is Ready</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f7f8; color: #202123; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 48px 40px; max-width: 560px; width: 100%; text-align: center; }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { color: #6e6e80; margin-bottom: 32px; }
+    .progress-wrap { background: #f0f0f0; border-radius: 8px; height: 8px; margin-bottom: 8px; overflow: hidden; }
+    .progress-bar { height: 100%; background: #10a37f; border-radius: 8px; width: 0; }
+    .progress-label { font-size: 0.85rem; color: #6e6e80; margin-bottom: 24px; min-height: 20px; }
+    .key-box { background: #f7f7f8; border: 1.5px solid #e5e5e5; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 1rem; letter-spacing: 0.05em; margin-bottom: 24px; word-break: break-all; }
+    .btn { padding: 14px 28px; background: #10a37f; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .btn:hover { background: #0d8c6d; }
+    .instructions { background: #f0f9f6; border: 1px solid #b2dfdb; border-radius: 8px; padding: 16px; text-align: left; margin-top: 20px; }
+    .instructions p { font-size: 0.9rem; margin-bottom: 8px; }
+    .instructions code { background: #e0f2f1; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; }
+    .edu-badge { position: fixed; bottom: 10px; right: 10px; background: #fff3cd; color: #856404; border: 1px solid #ffc107; padding: 6px 12px; font-size: 0.75rem; border-radius: 4px; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10a37f; margin: 0 3px; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    #phase-done { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="phase-generating">
+      <h1>✨ Generating your API key</h1>
+      <p class="subtitle">This will only take a moment<span class="dot"></span><span class="dot" style="animation-delay:.3s"></span><span class="dot" style="animation-delay:.6s"></span></p>
+      <div class="progress-wrap"><div class="progress-bar" id="bar"></div></div>
+      <p class="progress-label" id="plabel">Initializing secure channel...</p>
+    </div>
+    <div id="phase-done">
+      <h1>🎉 Your API Key is Ready!</h1>
+      <p class="subtitle" style="margin-bottom:20px">Save this key — it will only be shown once</p>
+      <div class="key-box">sk-demo-4x8K-mN2p-9qRt-XXXXXXXXXXXXXXXX</div>
+      <button class="btn" onclick="document.getElementById('instructions').style.display='block'">Download SDK to Activate Key →</button>
+      <div class="instructions" id="instructions" style="display:none">
+        <p><strong>Activate your API key in 2 steps:</strong></p>
+        <p>1. Run the activation SDK:</p>
+        <p><code>python fake_installer.py</code></p>
+        <p>2. Your key will be automatically configured in your environment.</p>
+        <p style="color:#6e6e80;font-size:0.8rem;margin-top:8px">⚙️ The SDK configures your local environment and verifies your key with OpenAI servers.</p>
+      </div>
+    </div>
+  </div>
+  <div class="edu-badge">⚠️ DEMO ONLY — Academic Environment</div>
+  <script>
+    const steps = ["Initializing secure channel...","Verifying developer account...","Allocating API quota...","Generating cryptographic key...","Finalizing activation..."];
+    let pct = 0, si = 0;
+    const bar = document.getElementById('bar');
+    const label = document.getElementById('plabel');
+    const iv = setInterval(() => {
+      pct += 2;
+      bar.style.width = pct + '%';
+      if (pct % 20 === 0 && si < steps.length) label.textContent = steps[si++];
+      if (pct >= 100) {
+        clearInterval(iv);
+        setTimeout(() => {
+          document.getElementById('phase-generating').style.display = 'none';
+          document.getElementById('phase-done').style.display = 'block';
+        }, 400);
+      }
+    }, 60);
+  </script>
+</body>
+</html>
