@@ -132,6 +132,10 @@ class ProManagerApp:
         self._pbar.pack(pady=(20, 0))
         self._pbar.start(12)
 
+        tk.Frame(f, bg=BG3, height=1).pack(fill='x', pady=(16, 8))
+        tk.Label(f, text='⚠  DEMO ONLY — Academic Environment',
+                 font=FONT_SMALL, bg=BG, fg=C_YLW).pack()
+
         threading.Thread(target=self._do_activate, daemon=True).start()
 
     def _do_activate(self):
