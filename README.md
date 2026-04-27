@@ -1,170 +1,160 @@
-# ATBMHTTT - Demo phong chong ransomware cho du lieu TMDT
+# ATBMHTTT — Demo Phòng Chống Ransomware cho Dữ Liệu TMĐT
 
-Du an demo hoc thuat cho mon **An Toan Bao Mat He Thong Thong Tin**. Kich ban mo phong mot ung dung quan ly gia mao, qua do ma hoa du lieu mau trong `shop_data/`, sau do dung cac cong cu phong thu de phat hien, giai ma va backup lai du lieu.
+Dự án demo học thuật cho môn **An Toàn Bảo Mật Hệ Thống Thông Tin**. Kịch bản mô phỏng toàn bộ vòng đời của một cuộc tấn công social engineering + ransomware và quá trình phòng thủ, phát hiện, phục hồi.
 
-> **Demo only:** chi chay tren may local va chi tac dong vao thu muc sandbox `shop_data/`. Khong dung cac script nay tren du lieu that hoac moi truong production.
+> **DEMO ONLY** — Chỉ chạy trên máy local. Không dùng trên dữ liệu thật hoặc môi trường production.
 
-## Tong quan
+---
 
-| Thanh phan | Vai tro |
-| --- | --- |
-| `demo.sh` | Script dieu phoi demo: tan cong, quet, phuc hoi, backup |
-| `manager-agent/` | Ung dung ProManager gia mao va ransomware simulator |
-| `defender/` | Bo cong cu phat hien, giai ma va backup |
-| `shop_data/` | Du lieu thuong mai dien tu mau dung lam sandbox |
-| `backups/` | Cac ban backup `.tar.gz` duoc tao trong demo |
+## Tổng quan
 
-## Cau truc du an
+| Thành phần | Vai trò |
+|---|---|
+| `manager-agent/` | Mã độc — GUI ProManager Suite giả mạo + ransomware engine |
+| `shop_data/` | Dữ liệu nạn nhân — file TMĐT mẫu dùng làm sandbox |
+| `defender/` | Phần mềm bảo vệ — scanner, backup, GUI defender |
+| `landing-web/` | Trang web quảng cáo giả (React + Vite) phát tán file exe |
+| `backups/` | Các bản backup `.tar.gz` tạo ra trong demo |
+
+---
+
+## Cấu trúc dự án
 
 ```text
 .
-├── demo.sh
 ├── manager-agent/
-│   ├── fake_manager.py          # GUI ProManager gia mao
-│   ├── fake_installer.py        # Installer gia lap qua terminal
-│   ├── fake_ransom.py           # Man hinh ransom note demo
-│   └── ransomware_simulator.py  # Ma hoa/giai ma trong sandbox
+│   ├── ProManagerSuite.exe      # File ELF PyInstaller (~14 MB) — nạn nhân tải về
+│   ├── fake_manager.py          # GUI ProManager giả (activation + dashboard)
+│   ├── fake_ransom.py           # Màn hình ransom note fullscreen
+│   └── ransomware_simulator.py  # Engine mã hóa Fernet (sandbox-only)
+│
+├── shop_data/                   # Dữ liệu TMĐT mẫu (invoice, customer, contract…)
+│
 ├── defender/
-│   ├── static_analyzer.py       # Quet tinh source/script dang nghi
-│   ├── scanner.py               # Quet file da bi ma hoa/high entropy
-│   ├── decryptor.py             # Giai ma file .encrypted bang .ransom_key
-│   ├── backup_manager.py        # Tao/list/restore backup
-│   └── rules/ransomware.yar     # YARA rules cho simulator
-├── shop_data/
-│   └── ...                      # Du lieu mau cua shop
-└── backups/
-    └── ...                      # Backup sinh ra khi demo
+│   ├── defender_gui.py          # GUI bảo vệ — Scanner, Backup, Dashboard, Log
+│   ├── scanner.py               # CLI — quét entropy + đuôi .encrypted
+│   ├── decryptor.py             # CLI — giải mã .encrypted bằng .ransom_key
+│   ├── backup_manager.py        # CLI — tạo/list/restore backup tar.gz
+│   ├── static_analyzer.py       # Phân tích tĩnh file nghi ngờ (YARA)
+│   ├── behavior_monitor.py      # Giám sát filesystem realtime
+│   └── rules/ransomware.yar     # YARA rules (3 rules)
+│
+├── landing-web/                 # React + Vite marketing page
+│   ├── public/ProManagerSuite.exe
+│   └── src/components/          # Hero, Features, Pricing, Download…
+│
+└── backups/                     # Backup sinh ra khi demo
 ```
 
-## Yeu cau
+---
 
-- Python 3.10+
-- `cryptography`
-- `yara-python` tuy chon, dung cho YARA scan trong `static_analyzer.py`
-- `tkinter` neu muon chay giao dien GUI (`fake_manager.py`, `fake_ransom.py`)
+## Yêu cầu
 
-Tren Ubuntu/Debian:
+- Python 3.10+ với `tkinter`
+- `cryptography` (bắt buộc)
+- `yara-python` (tùy chọn — dùng trong `static_analyzer.py`)
+- Node.js 18+ (chỉ cho landing page)
 
 ```bash
 sudo apt install python3-tk
 python3 -m pip install cryptography yara-python
 ```
 
-Neu khong can YARA, co the chi cai:
+---
 
-```bash
-python3 -m pip install cryptography
+## Luồng tấn công mô phỏng
+
+```
+Nạn nhân truy cập landing-web (React site)
+  → Tải ProManagerSuite.exe
+  → Chạy exe → fake_manager.py khởi động
+      → Màn hình Activation (nhập API key)
+      → Màn hình "Verifying..." fullscreen
+      → Dashboard ProManager giả (sidebar, project cards, task list)
+      → Sau ~10s: fake_ransom.py fullscreen
+          → Hiển thị yêu cầu 59,000,000 VND + countdown
+          → Đồng thời: ransomware_simulator.py mã hóa file trong thư mục exe
+              → File gốc → file.encrypted
+              → Khóa lưu tại .ransom_key
 ```
 
-## Chay demo nhanh
+---
+
+## Chạy demo
+
+### Tấn công
 
 ```bash
-bash demo.sh
+# Chạy GUI tấn công (fake ProManager)
+python3 manager-agent/fake_manager.py
+
+# Hoặc chạy thẳng file exe (mô phỏng nạn nhân)
+./manager-agent/ProManagerSuite.exe
+
+# Mã hóa shop_data thủ công
+python3 manager-agent/ransomware_simulator.py
+
+# Giải mã shop_data thủ công
+python3 manager-agent/ransomware_simulator.py decrypt
 ```
 
-Mac dinh, script chay day du cac buoc:
-
-| Buoc | Noi dung |
-| --- | --- |
-| 1 | Backup du lieu trong `shop_data/` |
-| 2 | Hien thi du lieu ban dau |
-| 3 | Mo ung dung ProManager gia mao va kich hoat ma hoa trong sandbox |
-| 4 | Hien thi ket qua sau tan cong |
-| 5 | Phan tich tinh file tan cong |
-| 6 | Quet `shop_data/` de tim dau hieu ransomware |
-| 7 | Giai ma bang `.ransom_key` hoac restore tu backup |
-| 8 | Tao backup moi sau phuc hoi |
-| 9 | Hien thi ket qua cuoi |
-
-## Cac che do chay
+### Phòng thủ
 
 ```bash
-# Chay day du: attack + defense + recovery
-bash demo.sh
+# Mở GUI defender (khuyến nghị)
+python3 defender/defender_gui.py
 
-# Chi chay phan tan cong
-bash demo.sh --attack-only
+# CLI — quét phát hiện ransomware
+python3 defender/scanner.py shop_data/
 
-# Chi chay phan phong thu va phuc hoi
-bash demo.sh --defend-only
+# CLI — giải mã file .encrypted
+python3 defender/decryptor.py shop_data/
 
-# Xem huong dan ngan
-bash demo.sh --help
-```
-
-Luu y: `--attack-only` co the bien file plaintext trong `shop_data/` thanh file `.encrypted`. Hay chay `bash demo.sh --defend-only` hoac `python3 defender/decryptor.py shop_data` de phuc hoi sau khi demo.
-
-## Chay tung cong cu
-
-```bash
-# Quet tinh file nghi ngo
-python3 defender/static_analyzer.py manager-agent/fake_manager.py
-
-# Quet du lieu sandbox
-python3 defender/scanner.py shop_data
-
-# Giai ma cac file .encrypted trong shop_data/
-python3 defender/decryptor.py shop_data
-
-# Tao backup
-python3 defender/backup_manager.py backup
-
-# Liet ke backup
+# CLI — backup / restore
+python3 defender/backup_manager.py
 python3 defender/backup_manager.py list
-
-# Restore tu mot backup cu the
 python3 defender/backup_manager.py restore backups/backup_YYYYMMDD_HHMMSS.tar.gz
+
+# Phân tích tĩnh file nghi ngờ
+python3 defender/static_analyzer.py manager-agent/fake_manager.py
 ```
 
-## Luong tan cong mo phong
-
-1. Nguoi dung mo `manager-agent/fake_manager.py`.
-2. Ung dung hien giao dien ProManager Suite gia mao va yeu cau API/license key.
-3. Sau khi "activate", ung dung chuyen sang dashboard gia.
-4. `RansomwareSimulator` ma hoa file trong `shop_data/` bang Fernet.
-5. File goc bi thay bang file co duoi `.encrypted`.
-6. Khoa giai ma duoc luu local trong `shop_data/.ransom_key`.
-7. Man hinh ransom note demo duoc hien thi qua `fake_ransom.py`.
-
-## Co che phong thu
-
-| Cong cu | Cach phat hien |
-| --- | --- |
-| `static_analyzer.py` | YARA rules, chuoi nguy hiem, combo `cryptography` + `os.walk` + `os.remove` |
-| `scanner.py` | Duoi file dang nghi (`.encrypted`, `.locked`, `.crypto`, `.crypt`, `.enc`), entropy cao, safety signature |
-| `behavior_monitor.py` | Theo doi snapshot filesystem va phat hien file `.encrypted` moi hoac file goc bi xoa |
-| `decryptor.py` | Doc `shop_data/.ransom_key` va khoi phuc file `.encrypted` |
-| `backup_manager.py` | Tao, liet ke va restore backup `.tar.gz` |
-
-Nguong entropy hien tai trong `scanner.py` la `5.5`. Simulator co safety marker `RANSOMWARE_SIMULATOR_DEMO_SAFE` de cac cong cu phong thu co the nhan dien day la mau demo.
-
-## Du lieu va backup
-
-- `shop_data/` la sandbox chua file mau nhu invoice, customer data, contract va cau hinh API.
-- `demo.sh` tu tao backup truoc khi chay phan tan cong.
-- `defender/backup_manager.py` tao archive trong `backups/`.
-- Neu repo dang o trang thai co san file `.encrypted`, chay decryptor de khoi phuc plaintext:
+### Landing page
 
 ```bash
-python3 defender/decryptor.py shop_data
+cd landing-web
+npm install
+npm run dev      # localhost:5173
+npm run build    # build production
 ```
 
-## Luu y an toan
+---
 
-- Chi dung cho muc dich hoc tap va trinh dien phong thu.
-- Khong dua du lieu that vao `shop_data/`.
-- Khong sua simulator de quet ngoai sandbox.
-- Khong chia se hoac tai len mau da chinh sua theo huong co the gay hai.
-- Sau moi lan demo, kiem tra lai `shop_data/` va `backups/` truoc khi commit.
+## Cơ chế phòng thủ
 
-## Trang thai test
+| Công cụ | Cách phát hiện |
+|---|---|
+| `defender_gui.py` | Tên file khớp pattern biết (`promanagersuite`, `ransomware`…) → CRITICAL; entropy > 7.2 bits → HIGH; string scan `.py`/`.sh` |
+| `scanner.py` | Đuôi `.encrypted`, entropy > 7.5 bits, safety signature `RANSOMWARE_SIMULATOR_DEMO_SAFE` |
+| `static_analyzer.py` | YARA rules, chuỗi nguy hiểm, combo `cryptography` + `os.walk` + `os.remove` |
+| `behavior_monitor.py` | Theo dõi snapshot filesystem, phát hiện file `.encrypted` mới hoặc file gốc bị xóa |
+| `decryptor.py` | Đọc `.ransom_key` và khôi phục file `.encrypted` |
+| `backup_manager.py` | Tạo, liệt kê và restore backup `.tar.gz` |
 
-Repo hien tai khong co test suite tu dong. Kiem tra co ban nen gom:
+---
 
-```bash
-bash demo.sh --help
-python3 defender/scanner.py shop_data
+## An toàn sandbox
 
-# Expected: phat hien CRITICAL va exit non-zero
-python3 defender/static_analyzer.py manager-agent/ransomware_simulator.py
-```
+- `RansomwareSimulator._is_inside_sandbox()` dùng `os.path.realpath()` — không thể thoát ra ngoài thư mục sandbox.
+- Khi chạy dưới dạng exe: sandbox = thư mục chứa exe (không ảnh hưởng `shop_data/` hay dữ liệu hệ thống).
+- Extension bỏ qua khi mã hóa: `.exe .py .sh .bat .so .dll` — exe không tự mã hóa chính nó.
+- Safety marker `RANSOMWARE_SIMULATOR_DEMO_SAFE` nhúng trong source để scanner tự nhận diện.
+
+---
+
+## Lưu ý an toàn
+
+- Chỉ dùng cho mục đích học tập và trình diễn phòng thủ.
+- Không đưa dữ liệu thật vào `shop_data/`.
+- Không sửa simulator để quét ngoài sandbox.
+- Sau mỗi demo, kiểm tra lại `shop_data/` và chạy decryptor nếu cần.
