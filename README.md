@@ -1,16 +1,17 @@
 # Phòng Chống Mã Độc trong Hệ Thống Thương Mại Điện Tử
 
-Demo học thuật cho chủ đề **An Toàn Thông Tin (ATTT)** và **Bảo Mật Dữ Liệu (BMDL)** — minh họa ransomware simulator, phát hiện, giải mã và backup trong môi trường TMĐT.
+Demo học thuật cho chủ đề **An Toàn Thông Tin (ATTT)** và **Bảo Mật Dữ Liệu (BMDL)** — minh họa ransomware simulator, tấn công social engineering, phát hiện, giải mã và backup trong môi trường TMĐT.
 
 ---
 
 ## Tổng Quan
 
-Dự án gồm hai phần độc lập:
+Dự án gồm ba phần độc lập:
 
 | Phần | Mô tả |
 |------|-------|
-| `ransomware-demo/` | Demo 2 chiều: ransomware simulator + hệ thống phòng thủ |
+| `ransomware-demo/` | Demo 2 chiều: ransomware simulator + hệ thống phòng thủ (10 tests) |
+| `social-engineering/` | Demo social engineering: giả mạo "API key miễn phí" + defender chặn (6 tests) |
 | `secure_ecommerce.sh` | Demo quét ClamAV, mã hóa AES-256, backup tự động |
 
 ---
@@ -124,7 +125,93 @@ python3 -m pytest tests/ -v
 
 ---
 
-## Phần 2 — ShopSecure (ClamAV + GPG)
+## Phần 2 — Social Engineering Demo
+
+> ⚠️ **MÔI TRƯỜNG HỌC THUẬT — DEMO ONLY**
+> Kịch bản: nạn nhân bị lừa tải "phần mềm kích hoạt GPT API key miễn phí" — thực chất là ransomware.
+
+### Cấu Trúc
+
+```
+social-engineering/
+├── attacker/
+│   ├── fake_landing.html        # Landing page giả "Get Free GPT-4 API Key"
+│   ├── fake_key_generator.html  # UI sinh key giả + progress bar
+│   ├── fake_installer.py        # Installer giả — chạy ransomware ngầm
+│   └── victim_sandbox/          # Files "của nạn nhân" bị mã hóa
+├── defender/
+│   ├── static_analyzer.py       # Phân tích tĩnh: YARA + string scan
+│   └── behavior_monitor.py      # Theo dõi filesystem khi chạy
+├── prevention_success.html      # UI "Defender đã chặn thành công"
+├── demo_social.sh               # Script demo chính
+└── tests/                       # 6 tests, tất cả pass
+```
+
+### Cài Đặt
+
+```bash
+cd ransomware-demo
+pip install -r requirements.txt   # Tái dụng cùng dependencies
+```
+
+### Chạy Demo
+
+**Kịch bản 1 — Tấn công không có phòng thủ:**
+
+```bash
+cd social-engineering
+bash demo_social.sh --attack-only
+```
+
+| Bước | Hành động |
+|------|-----------|
+| 1 | Backup victim_sandbox |
+| 2 | Mở fake landing page trong browser |
+| 3 | Mở fake key generator |
+| 4 | Chạy fake_installer.py (ransomware mã hóa ngầm) |
+| 5 | Hiển thị victim_sandbox sau tấn công (toàn `.encrypted`) |
+| 6 | Mở ransom note trong browser |
+| 7 | Restore victim_sandbox từ backup |
+
+**Kịch bản 2 — Có hệ thống phòng thủ:**
+
+```bash
+cd social-engineering
+bash demo_social.sh --with-defender
+```
+
+| Bước | Hành động |
+|------|-----------|
+| 1–3 | Giống kịch bản 1 |
+| 4 | **Static analyzer quét fake_installer.py** → phát hiện CRITICAL |
+| 5 | Hỏi có bỏ qua cảnh báo không (để demo behavioral tiếp theo) |
+| 6 | Bật behavior monitor |
+| 7 | Chạy fake_installer.py (monitored) |
+| 8 | **Behavior monitor kill process** khi phát hiện `.encrypted` |
+| 9 | Mở prevention_success.html |
+| 10 | Restore victim_sandbox |
+
+### Cơ Chế Phát Hiện (Defender)
+
+| Thành phần | Phương pháp | Severity |
+|-----------|-------------|---------|
+| `static_analyzer.py` | YARA scan (`ransomware.yar`) | CRITICAL |
+| `static_analyzer.py` | Dangerous string scan (`Fernet`, `.encrypt(`) | CRITICAL |
+| `static_analyzer.py` | Suspicious import combo (`cryptography` + `os.walk` + `os.remove`) | MEDIUM |
+| `behavior_monitor.py` | Filesystem snapshot: file `.encrypted` mới xuất hiện | CRITICAL |
+| `behavior_monitor.py` | Filesystem snapshot: file gốc bị xóa | HIGH |
+
+### Chạy Tests
+
+```bash
+cd social-engineering
+python3 -m pytest tests/ -v
+# 6 passed (4 static_analyzer + 2 behavior_monitor)
+```
+
+---
+
+## Phần 3 — ShopSecure (ClamAV + GPG)
 
 Demo quét antivirus và mã hóa dữ liệu TMĐT.
 
