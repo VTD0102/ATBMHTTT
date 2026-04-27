@@ -82,11 +82,11 @@ if [ "$MODE" = "attack" ]; then
 
   echo -e "${RED}[STEP 2/7] Victim visits fake landing page${NC}"
   open_browser "$ATTACKER_DIR/fake_landing.html"
-  read -rp "  [Press Enter after viewing landing page]"; echo ""
+  read -rp "  [Press Enter after viewing landing page]" || true; echo ""
 
   echo -e "${RED}[STEP 3/7] Victim enters email → fake API key generator${NC}"
   open_browser "$ATTACKER_DIR/fake_key_generator.html"
-  read -rp "  [Press Enter after viewing key generator]"; echo ""
+  read -rp "  [Press Enter after viewing key generator]" || true; echo ""
 
   echo -e "${RED}[STEP 4/7] Victim runs fake_installer.py${NC}"
   python3 attacker/fake_installer.py; echo ""
@@ -95,7 +95,7 @@ if [ "$MODE" = "attack" ]; then
   ls -la "$VICTIM_SANDBOX/"; echo ""
 
   echo -e "${RED}[STEP 6/7] Ransom note (opened by installer — check browser)${NC}"
-  read -rp "  [Press Enter to continue]"; echo ""
+  read -rp "  [Press Enter to continue]" || true; echo ""
 
   echo -e "${GREEN}[STEP 7/7] Restoring victim_sandbox...${NC}"
   restore_sandbox; echo ""
@@ -115,17 +115,17 @@ elif [ "$MODE" = "defend" ]; then
 
   echo -e "${BLUE}[STEP 2/10] Victim visits fake landing page${NC}"
   open_browser "$ATTACKER_DIR/fake_landing.html"
-  read -rp "  [Press Enter after viewing landing page]"; echo ""
+  read -rp "  [Press Enter after viewing landing page]" || true; echo ""
 
   echo -e "${BLUE}[STEP 3/10] Victim sees fake API key generator${NC}"
   open_browser "$ATTACKER_DIR/fake_key_generator.html"
-  read -rp "  [Press Enter after viewing key generator]"; echo ""
+  read -rp "  [Press Enter after viewing key generator]" || true; echo ""
 
   echo -e "${GREEN}[STEP 4/10] DEFENDER: Static analyzer scanning fake_installer.py...${NC}"
   python3 defender/static_analyzer.py attacker/fake_installer.py || true; echo ""
 
   echo -e "${RED}[STEP 5/10] ⚠ CRITICAL threats found — installer is DANGEROUS${NC}"
-  read -rp "  Bypass to demo behavioral defense? (y/N): " bypass
+  read -rp "  Bypass to demo behavioral defense? (y/N): " bypass || bypass="n"
   if [ "$bypass" != "y" ] && [ "$bypass" != "Y" ]; then
     echo -e "\n  ${GREEN}✓ Attack prevented at static analysis stage.${NC}"
     restore_sandbox
@@ -142,7 +142,7 @@ elif [ "$MODE" = "defend" ]; then
 
   echo -e "${GREEN}[STEP 9/10] Prevention success page${NC}"
   open_browser "$SCRIPT_DIR/prevention_success.html"
-  read -rp "  [Press Enter to continue]"; echo ""
+  read -rp "  [Press Enter to continue]" || true; echo ""
 
   echo -e "${GREEN}[STEP 10/10] Restoring victim_sandbox...${NC}"
   restore_sandbox; echo ""
