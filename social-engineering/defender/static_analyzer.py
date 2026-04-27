@@ -35,8 +35,8 @@ def analyze_file(filepath: str, yara_rules_path: str = _YARA_RULES_PATH) -> List
                     "severity": "CRITICAL",
                     "detail": f"YARA rule matched: {match.rule}",
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[static_analyzer] YARA scan skipped: {e}", file=sys.stderr)
 
     try:
         with open(filepath, "r", encoding="utf-8", errors="ignore") as fh:

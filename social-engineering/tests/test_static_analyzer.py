@@ -35,3 +35,15 @@ def test_clean_file_no_false_positive(tmp_path):
     f.write_text("import math\nprint(math.pi)\n")
     findings = analyze_file(str(f))
     assert findings == []
+
+
+def test_detect_suspicious_import_combo(tmp_path):
+    """File with cryptography + os.walk + os.remove (no critical strings) triggers MEDIUM suspicious_import_combo."""
+    f = tmp_path / "combo.py"
+    f.write_text(
+        "import cryptography\n"
+        "for root, _, files in os.walk('.'):\n"
+        "    os.remove('x')\n"
+    )
+    findings = analyze_file(str(f))
+    assert any(r["reason"] == "suspicious_import_combo" and r["severity"] == "MEDIUM" for r in findings)
