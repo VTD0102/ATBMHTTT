@@ -1,6 +1,5 @@
 import os
 import sys
-import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from defender.static_analyzer import analyze_file
@@ -11,8 +10,7 @@ def test_static_analyzer_detects_fake_manager():
     """static_analyzer flags fake_manager.py as CRITICAL (YARA + dangerous strings)."""
     fake_manager_path = os.path.join(os.path.dirname(__file__), '..', 'attacker', 'fake_manager.py')
     findings = analyze_file(fake_manager_path)
-    critical = [f for f in findings if f['severity'] == 'CRITICAL']
-    assert len(critical) >= 1
+    assert any(f['severity'] == 'CRITICAL' for f in findings)
 
 
 def test_fake_manager_encrypts_sandbox(tmp_path):
