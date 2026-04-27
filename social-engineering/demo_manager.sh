@@ -62,8 +62,8 @@ if [ -z "$MODE" ]; then
   echo -e "${YELLOW}Select demo mode:${NC}"
   echo "  1) --attack-only    (no defense)"
   echo "  2) --with-defender  (static + behavioral defense)"
-  read -rp "Enter 1 or 2: " choice || choice="1"
-  [ "$choice" = "2" ] && MODE="defend" || MODE="attack"
+  read -rp "Enter 1 or 2: " choice || true
+  [ "$choice" = "1" ] && MODE="attack" || MODE="defend"
 fi
 
 cd "$SCRIPT_DIR"
