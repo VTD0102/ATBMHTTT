@@ -7,11 +7,11 @@ rule RansomwareSimulator_Demo {
 
     strings:
         $sig1 = "RANSOMWARE_SIMULATOR_DEMO_SAFE" ascii
-        // $sig2 = "RansomwareSimulator" ascii  // too generic, kept for reference only
+        $sig2 = "RansomwareSimulator" ascii
         $sig3 = "ENCRYPTED_EXT = \".encrypted\"" ascii
 
     condition:
-        $sig1 and $sig3
+        any of them
 }
 
 rule EncryptedFilePattern {
@@ -26,7 +26,6 @@ rule EncryptedFilePattern {
     condition:
         $fernet_header at 0
 }
-
 rule RansomNoteHTML {
     meta:
         description = "Detect ransom note HTML page"
