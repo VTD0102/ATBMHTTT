@@ -82,6 +82,40 @@ Nạn nhân truy cập landing-web (React site)
 
 ## Chạy demo
 
+### Demo tổng hợp (`demo.sh`)
+
+Script `demo.sh` điều phối toàn bộ kịch bản 9 bước tự động:
+
+```bash
+# Chạy đầy đủ: attack + defense + recovery
+bash demo.sh
+
+# Chỉ chạy phần tấn công (mã hóa shop_data)
+bash demo.sh --attack-only
+
+# Chỉ chạy phần phòng thủ và phục hồi
+bash demo.sh --defend-only
+
+# Xem hướng dẫn
+bash demo.sh --help
+```
+
+| Bước | Nội dung |
+|---|---|
+| 1 | Backup `shop_data/` trước khi tấn công |
+| 2 | Hiển thị dữ liệu TMĐT ban đầu |
+| 3 | Mở GUI ProManager Suite giả — nạn nhân nhập API key |
+| 4 | Hiển thị kết quả sau tấn công (file `.encrypted`) |
+| 5 | Static analysis `fake_manager.py` bằng YARA |
+| 6 | Quét `shop_data/` phát hiện ransomware |
+| 7 | Giải mã bằng `.ransom_key` hoặc restore từ backup |
+| 8 | Tạo backup định kỳ sau phục hồi |
+| 9 | Hiển thị kết quả cuối |
+
+> **Lưu ý:** `--attack-only` sẽ mã hóa file trong `shop_data/`. Chạy `bash demo.sh --defend-only` hoặc `python3 defender/decryptor.py shop_data/` để phục hồi.
+
+---
+
 ### Tấn công
 
 ```bash
