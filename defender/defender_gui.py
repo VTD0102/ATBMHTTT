@@ -184,6 +184,8 @@ class DefenderApp:
         self._bad_procs_var      = tk.StringVar(value='Không có')
         self._ransom_key_present = False
         self._incident_actions   = []
+        self._under_attack       = False   # flag: đã kích hoạt auto-respond chưa
+        self._attack_banner_var  = tk.StringVar(value='')
 
         # Backup vars
         self._backup_on  = tk.BooleanVar(value=True)
@@ -293,9 +295,29 @@ class DefenderApp:
             tk.Label(c, text=value_var, font=('Segoe UI', 15, 'bold'), bg=CARD, fg=fg).pack(anchor='w')
         tk.Label(c, text=label, font=SFS, bg=CARD, fg=MUTED).pack(anchor='w')
 
+    # ── Attack banner (top of content) ──────────────────────────────
+    def _show_attack_banner(self):
+        if not hasattr(self, '_attack_banner_frame'):
+            return
+        for w in self._attack_banner_frame.winfo_children():
+            w.destroy()
+        if self._under_attack:
+            box = tk.Frame(self._attack_banner_frame, bg='#dc2626', padx=16, pady=10)
+            box.pack(fill='x')
+            tk.Label(box, text='🔴  PHÁT HIỆN TẤN CÔNG RANSOMWARE — Đang cô lập và bảo vệ...',
+                     font=('Segoe UI', 11, 'bold'), bg='#dc2626', fg='#ffffff').pack(side='left')
+            tk.Button(box, text='Xem chi tiết →', font=('Segoe UI', 10, 'bold'),
+                      bg='#ffffff', fg='#dc2626', relief='flat', bd=0, padx=12, pady=4,
+                      cursor='hand2', command=lambda: self._show('contain')).pack(side='right')
+
     # ── 1. DASHBOARD ─────────────────────────────────────────────────
     def _panel_dashboard(self):
         self._topbar('Dashboard', 'Quy trình ứng phó sự cố ransomware (NIST IR Framework)')
+        # Attack banner slot (shown when under attack)
+        self._attack_banner_frame = tk.Frame(self._content, bg=BG)
+        self._attack_banner_frame.pack(fill='x')
+        self._show_attack_banner()
+
         scroll_canvas = tk.Canvas(self._content, bg=BG, highlightthickness=0)
         vsb = ttk.Scrollbar(self._content, orient='vertical', command=scroll_canvas.yview)
         scroll_canvas.configure(yscrollcommand=vsb.set)
@@ -1065,21 +1087,72 @@ class DefenderApp:
     def _watch_loop(self):
         prev_enc = _count_encrypted(_VICTIM_DIR)
         while True:
-            time.sleep(3)
+            time.sleep(2)
             enc = _count_encrypted(_VICTIM_DIR)
-            if enc > prev_enc:
+            if enc > prev_enc and not self._under_attack:
                 delta = enc - prev_enc
                 self._log(f'[NGUY HIỂM] {delta} file mới bị mã hóa! (Tổng: {enc})')
                 self._phase['identification'] = 'active'
-                self.root.after(0, lambda d=delta, t=enc: self._alert(
-                    f'PHÁT HIỆN RANSOMWARE ĐANG HOẠT ĐỘNG!\n\n'
-                    f'{d} file vừa bị mã hóa (tổng: {t} file)\n\n'
-                    f'→ Chuyển sang "Cô lập & Tiêu diệt" ngay!'
-                ))
+                self._under_attack = True
+                self.root.after(0, self._auto_respond)
+            elif enc > prev_enc:
+                delta = enc - prev_enc
+                self._log(f'[NGUY HIỂM] Thêm {delta} file bị mã hóa (Tổng: {enc})')
             prev_enc = enc
             self.root.after(0, self._update_dashboard_stats)
             if self._active_panel == 'detect':
                 self.root.after(0, self._refresh_detect_indicators)
+
+    def _auto_respond(self):
+        """Tự động ứng phó khi phát hiện ransomware: kill → backup → alert."""
+        self._log('[NGUY HIỂM] Kích hoạt ứng phó tự động...')
+        self._incident_actions.append('HIDS phát hiện ransomware — kích hoạt auto-respond')
+
+        # 1. Hiện banner đỏ trên dashboard
+        if self._active_panel == 'dashboard':
+            self._show_attack_banner()
+
+        # 2. Kill các tiến trình độc hại
+        killed = []
+        for name in _BAD_PROCS:
+            try:
+                r = subprocess.run(['pkill', '-f', name], capture_output=True)
+                if r.returncode == 0:
+                    killed.append(name)
+            except FileNotFoundError:
+                pass
+        if killed:
+            self._log(f'[OK] Tự động dừng tiến trình: {", ".join(killed)}')
+            self._incident_actions.append(f'Auto-kill tiến trình: {", ".join(killed)}')
+            self._advance_phase('containment')
+        else:
+            self._log('[OK] Không tìm thấy tiến trình đang chạy — có thể đã tự thoát')
+            self._advance_phase('containment')
+
+        # 3. Bật maintenance mode tự động
+        flag = os.path.join(_root, 'MAINTENANCE.flag')
+        with open(flag, 'w') as fh:
+            fh.write(f'Auto maintenance mode at {datetime.now()}\n')
+        self._log('[OK] Tự động bật Maintenance Mode')
+        self._incident_actions.append('Auto Maintenance Mode')
+        self._advance_phase('eradication')
+
+        # 4. Backup khẩn cấp
+        self._log('[BACKUP] Bắt đầu backup khẩn cấp dữ liệu...')
+        threading.Thread(target=self._run_backup, daemon=True).start()
+
+        # 5. Alert popup
+        enc = _count_encrypted(_VICTIM_DIR)
+        self.root.after(800, lambda: messagebox.showwarning(
+            '🔴  CẢNH BÁO — Ransomware Detected',
+            f'Hệ thống HIDS phát hiện tấn công ransomware!\n\n'
+            f'📁  {enc} file đã bị mã hóa\n\n'
+            f'Đã tự động thực hiện:\n'
+            f'  ✓ Dừng tiến trình độc hại\n'
+            f'  ✓ Bật Maintenance Mode\n'
+            f'  ✓ Backup khẩn cấp dữ liệu\n\n'
+            f'→ Chuyển sang "Phục hồi" để giải mã dữ liệu.'
+        ))
 
     # ── Backup logic ─────────────────────────────────────────────────
     def _run_backup(self):
