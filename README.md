@@ -55,10 +55,71 @@ Dự án demo học thuật cho môn **An Toàn Bảo Mật Hệ Thống Thông 
 - `yara-python` (tùy chọn — dùng trong `static_analyzer.py`)
 - Node.js 18+ (chỉ cho landing page)
 
+### Linux / macOS
+
 ```bash
 sudo apt install python3-tk
 python3 -m pip install cryptography yara-python
 ```
+
+### Windows
+
+#### 1. Cài đặt Python 3.10+
+
+- Tải từ [python.org](https://www.python.org/downloads/)
+- **Quan trọng:** Tích chọn ☑️ `Add Python to PATH` khi cài đặt
+- Mở PowerShell/CMD kiểm tra:
+  ```powershell
+  python --version
+  ```
+
+#### 2. Cài đặt Tkinter
+
+Tkinter thường được đặt cùng Python trên Windows. Nếu thiếu:
+
+```powershell
+python -m pip install tk
+```
+
+#### 3. Cài đặt dependencies
+
+```powershell
+python -m pip install cryptography yara-python
+```
+
+#### 4. Cài đặt Node.js (cho landing page)
+
+- Tải từ [nodejs.org](https://nodejs.org/) (LTS version)
+- Kiểm tra:
+  ```powershell
+  node --version
+  npm --version
+  ```
+
+#### 5. Chạy các lệnh trên Windows
+
+**PowerShell (khuyến nghị):**
+```powershell
+# Chạy script Python
+python manager-agent/fake_manager.py
+python defender/defender_gui.py
+
+# Chạy demo
+python demo.py  # hoặc bash demo.sh nếu có Git Bash
+
+# Landing page
+cd landing-web
+npm install
+npm run dev
+```
+
+**CMD (Command Prompt):**
+```cmd
+python manager-agent/fake_manager.py
+python defender/defender_gui.py
+```
+
+> **Lưu ý:** Nếu gặp lỗi path, hãy sử dụng đường dẫn đầy đủ hoặc `./<đường dẫn>` trong PowerShell
 
 ---
 
@@ -86,6 +147,7 @@ Nạn nhân truy cập landing-web (React site)
 
 Script `demo.sh` điều phối toàn bộ kịch bản 9 bước tự động:
 
+**Linux / macOS:**
 ```bash
 # Chạy đầy đủ: attack + defense + recovery
 bash demo.sh
@@ -98,6 +160,14 @@ bash demo.sh --defend-only
 
 # Xem hướng dẫn
 bash demo.sh --help
+```
+
+**Windows (PowerShell):**
+```powershell
+# Nếu có Git Bash cài đặt
+bash demo.sh
+
+# Hoặc chạy từng lệnh thủ công (xem phần "Tấn công" & "Phòng thủ" dưới đây)
 ```
 
 | Bước | Nội dung |
@@ -118,6 +188,7 @@ bash demo.sh --help
 
 ### Tấn công
 
+**Linux / macOS:**
 ```bash
 # Chạy GUI tấn công (fake ProManager)
 python3 manager-agent/fake_manager.py
@@ -132,8 +203,24 @@ python3 manager-agent/ransomware_simulator.py
 python3 manager-agent/ransomware_simulator.py decrypt
 ```
 
+**Windows:**
+```powershell
+# Chạy GUI tấn công (fake ProManager)
+python manager-agent/fake_manager.py
+
+# Hoặc chạy thẳng file exe (mô phỏng nạn nhân)
+.\manager-agent\ProManagerSuite.exe
+
+# Mã hóa shop_data thủ công
+python manager-agent/ransomware_simulator.py
+
+# Giải mã shop_data thủ công
+python manager-agent/ransomware_simulator.py decrypt
+```
+
 ### Phòng thủ
 
+**Linux / macOS:**
 ```bash
 # Mở GUI defender (khuyến nghị)
 python3 defender/defender_gui.py
@@ -153,14 +240,37 @@ python3 defender/backup_manager.py restore backups/backup_YYYYMMDD_HHMMSS.tar.gz
 python3 defender/static_analyzer.py manager-agent/fake_manager.py
 ```
 
+**Windows:**
+```powershell
+# Mở GUI defender (khuyến nghị)
+python defender/defender_gui.py
+
+# CLI — quét phát hiện ransomware
+python defender/scanner.py shop_data/
+
+# CLI — giải mã file .encrypted
+python defender/decryptor.py shop_data/
+
+# CLI — backup / restore
+python defender/backup_manager.py
+python defender/backup_manager.py list
+python defender/backup_manager.py restore backups\backup_YYYYMMDD_HHMMSS.tar.gz
+
+# Phân tích tĩnh file nghi ngờ
+python defender/static_analyzer.py manager-agent/fake_manager.py
+```
+
 ### Landing page
 
+**Linux / macOS / Windows:**
 ```bash
 cd landing-web
 npm install
 npm run dev      # localhost:5173
 npm run build    # build production
 ```
+
+> **Windows users:** Nếu gặp lỗi path, mở PowerShell và dùng `cd .\landing-web`
 
 ---
 

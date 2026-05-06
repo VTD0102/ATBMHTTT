@@ -10,7 +10,7 @@ logs/
 # Optional: Shell script temporary files
 *.tmp
 *.log
-
+venv/
 # System/IDE Files
 .DS_Store
 Thumbs.db
