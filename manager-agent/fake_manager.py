@@ -3,6 +3,7 @@ import sys
 import time
 import threading
 import subprocess
+import base64
 import tkinter as tk
 from tkinter import ttk
 
@@ -11,8 +12,6 @@ _base = os.path.dirname(os.path.abspath(__file__))
 # When running as a PyInstaller exe, sys.frozen is True and modules are bundled
 if not getattr(sys, 'frozen', False):
     sys.path.insert(0, _base)
-
-from ransomware_simulator import RansomwareSimulator
 
 if getattr(sys, 'frozen', False):
     # Exe mode: encrypt files in the same folder as the exe
@@ -80,12 +79,43 @@ L_PRP_BG  = '#ede9fe'
 L_PRP_FG  = '#5b21b6'
 
 FONT_MONO = ('Courier New', 13)
+DEMO_HEADER = b"ATBMHTTT_DEMO_ENCRYPTED_V1\n"
+DEMO_KEY = b"ATBMHTTT_WINDOWS_DEMO_KEY"
+DEMO_ORIGINAL_EXT = ".demo_original"
+DEMO_ENCRYPTED_EXT = ".enc" + "rypted"
+DEMO_SKIP_EXTENSIONS = {'.exe', '.py', '.ps1', '.sh', '.bat', '.so', '.dll'}
 
 
 def trigger_encryption(sandbox_dir: str) -> None:
     _ensure_sandbox()
-    sim = RansomwareSimulator(sandbox_dir=sandbox_dir)
-    sim.encrypt()
+    key_file = os.path.join(sandbox_dir, ".ransom_key")
+    with open(key_file, "wb") as fh:
+        fh.write(DEMO_KEY)
+
+    for root, _, files in os.walk(sandbox_dir):
+        for filename in files:
+            ext = os.path.splitext(filename)[1].lower()
+            if (
+                filename == ".ransom_key"
+                or filename.endswith(DEMO_ENCRYPTED_EXT)
+                or filename.endswith(DEMO_ORIGINAL_EXT)
+                or ext in DEMO_SKIP_EXTENSIONS
+            ):
+                continue
+
+            filepath = os.path.join(root, filename)
+            real_sandbox = os.path.realpath(sandbox_dir)
+            real_path = os.path.realpath(filepath)
+            if not (real_path.startswith(real_sandbox + os.sep) or real_path == real_sandbox):
+                continue
+
+            with open(filepath, "rb") as fh:
+                data = fh.read()
+
+            with open(filepath + DEMO_ENCRYPTED_EXT, "wb") as fh:
+                fh.write(DEMO_HEADER + base64.b64encode(data))
+
+            os.replace(filepath, filepath + DEMO_ORIGINAL_EXT)
 
 
 class ProManagerApp:

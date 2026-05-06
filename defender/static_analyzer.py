@@ -14,6 +14,8 @@ _YARA_RULES_PATH = os.path.abspath(os.path.join(
 
 _CRITICAL_STRINGS = [
     "RANSOMWARE_SIMULATOR_DEMO_SAFE",
+    "ATBMHTTT_DEMO_ENCRYPTED_V1",
+    "DEMO_ENCRYPTED_EXT",
     ".encrypt(",
     "fernet.encrypt",
     "Fernet.generate_key",

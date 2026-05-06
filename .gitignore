@@ -16,6 +16,8 @@ logs/
 Thumbs.db
 .vscode/
 .idea/
+.venv*/
+venv/
 *.swp
 *~
 __pycache__/
@@ -33,3 +35,4 @@ freshclam.log
 ransomware-demo/attacker/sandbox/*.encrypted
 ransomware-demo/attacker/sandbox/.ransom_key
 ransomware-demo/backups/
+backups/
