@@ -80,9 +80,9 @@ class FakeRansomApp:
             computer_name = 'YOUR-PC'
 
         rows = [
-            ('Bank',           'BIDV — PGD Moc Chau'),
-            ('Account Owner',  'VU TRUNG DUC'),
-            ('Account Number', '4120271561'),
+            ('Bank',           'BIDV — PGD Ha Tinh'),
+            ('Account Owner',  'An Thuyên'),
+            ('Account Number', '2929292929'),
             ('Transfer Note',  f'UNLOCK {computer_name}'),
             ('After payment',  'Email: support@promanager.io'),
         ]
@@ -103,7 +103,7 @@ class FakeRansomApp:
 
         tk.Label(total_frame, text='TOTAL AMOUNT',
                  font=('Courier New', 15, 'bold'), bg=BG2, fg=FG).pack(expand=True)
-        tk.Label(total_frame, text='59,000,000 VND',
+        tk.Label(total_frame, text='29,000,000 VND',
                  font=('Courier New', 48, 'bold'), bg=BG2, fg=AMBER).pack(expand=True)
 
         # ── Row 3: Unlock ─────────────────────────────────
