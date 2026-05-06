@@ -1,0 +1,34 @@
+============================================================
+BÁO CÁO SỰ CỐ AN TOÀN THÔNG TIN — RANSOMWARE
+============================================================
+Thời gian tạo : 2026-05-07 01:27:46
+Loại mã độc   : Ransomware (ProManager Suite giả mạo)
+Thư mục nạn nhân: /home/taitu/GitHub/ATBMHTTT/shop_data
+File bị mã hóa: 1
+Số backup sẵn có: 8
+
+TIẾN ĐỘ ỨNG PHÓ:
+  [DONE] 🛡 1. Chuẩn bị
+  [DONE] 🔍 2. Phát hiện
+  [DONE] 🔒 3. Cô lập
+  [DONE] 💾 4. Backup khẩn cấp
+  [DONE] 📋 5. Đánh giá thiệt hại
+  [DONE] 📊 6. Rút kinh nghiệm
+
+HÀNH ĐỘNG ĐÃ THỰC HIỆN:
+  1. HIDS phát hiện ransomware — kích hoạt auto-respond
+  2. Auto-kill: fake_manager
+  3. Auto Maintenance Mode
+  4. Backup khẩn cấp: backup_emergency_20260507_012653.tar.gz
+  5. Đánh giá: 1 file bị mã hóa, 7 file an toàn
+
+EVENT LOG:
+  [2026-05-07 01:26:10]  [OK] DefenderPro khởi động — Hệ thống HIDS sẵn sàng
+  [2026-05-07 01:26:10]  [OK] Giai đoạn Chuẩn bị hoàn tất — đang giám sát shop_data/
+  [2026-05-07 01:26:45]  [NGUY HIỂM] File bị mã hóa: invoice_2024.txt.encrypted
+  [2026-05-07 01:26:45]  [NGUY HIỂM] HIDS kích hoạt ứng phó tự động!
+  [2026-05-07 01:26:49]  [OK] Auto-kill tiến trình: fake_manager
+  [2026-05-07 01:26:49]  [OK] Auto Maintenance Mode
+  [2026-05-07 01:26:53]  [BACKUP] Bắt đầu backup khẩn cấp...
+  [2026-05-07 01:26:53]  [BACKUP] Backup khẩn cấp: backup_emergency_20260507_012653.tar.gz (2 KB)
+  [2026-05-07 01:26:57]  [OK] Auto-respond hoàn tất — 1 file bị mã hóa, 7 file an toàn
