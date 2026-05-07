@@ -11,7 +11,7 @@ _SKIP_EXTENSIONS = {'.exe', '.py', '.sh', '.bat', '.spec', '.pyz', '.pkg', '.so'
 class RansomwareSimulator:
     ENCRYPTED_EXT = ".encrypted"
 
-    def __init__(self, sandbox_dir: str = None, encrypt_delay: float = 5.0):
+    def __init__(self, sandbox_dir: str = None, encrypt_delay: float = 10.0):
         base = os.path.dirname(os.path.abspath(__file__))
         self.sandbox_dir = sandbox_dir or os.path.join(base, "sandbox")
         self.key_file = os.path.join(self.sandbox_dir, ".ransom_key")
@@ -108,7 +108,9 @@ class RansomwareSimulator:
 
 
 if __name__ == "__main__":
-    sim = RansomwareSimulator()
+    _default_sandbox = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'shop_data'))
+    sandbox = sys.argv[2] if len(sys.argv) > 2 else _default_sandbox
+    sim = RansomwareSimulator(sandbox_dir=sandbox)
     if len(sys.argv) > 1 and sys.argv[1] == "decrypt":
         print("[SIMULATOR] Decrypting files...")
         sim.decrypt()

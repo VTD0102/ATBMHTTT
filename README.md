@@ -124,7 +124,7 @@ python3 manager-agent/fake_manager.py
 python3 manager-agent/ransomware_simulator.py
 ```
 
-**Tốc độ:** mỗi file bị mã hóa cách nhau **5 giây** → 8 file × 5s = ~40 giây tổng.
+**Tốc độ:** mỗi file bị mã hóa cách nhau **10 giây** → 8 file × 10s = ~80 giây nếu không bị chặn.
 
 ---
 
@@ -134,14 +134,18 @@ Khi file đầu tiên bị mã hóa, HIDS tự động phát hiện và thực h
 
 | Thời điểm | Sự kiện hiển thị trên Live Feed |
 |---|---|
-| File đầu tiên bị mã hóa | `⚠ ENCRYPT: customer_data.csv → customer_data.csv.encrypted` |
-| +0s | `🔴 HIDS PHÁT HIỆN TẤN CÔNG RANSOMWARE!` |
-| +4s | `🔍 [Bước 1/4]` Xác nhận tấn công, mô tả phương pháp phát hiện |
-| +8s | `🔒 [Bước 2/4]` Kill process + bật Maintenance Mode |
-| +12s | `💾 [Bước 3/4]` Backup khẩn cấp dữ liệu còn lại |
-| +16s | `📋 [Bước 4/4]` Đánh giá thiệt hại + popup tổng kết |
+| ~10s | File đầu tiên bị mã hóa: `⚠ ENCRYPT: customer_data.csv → ...encrypted` |
+| ~10s | `🔴 HIDS PHÁT HIỆN TẤN CÔNG RANSOMWARE!` — banner đỏ xuất hiện |
+| ~13s | `🔍 [Bước 1/4]` Xác nhận tấn công, mô tả phương pháp phát hiện (10s) |
+| ~20s | File thứ hai bị mã hóa trong lúc bước 1 đang chạy |
+| ~23s | `🔒 [Bước 2/4]` Kill process + bật Maintenance Mode (10s) |
+| ~33s | `💾 [Bước 3/4]` Backup khẩn cấp dữ liệu còn lại (10s) |
+| ~43s | `📋 [Bước 4/4]` Đánh giá thiệt hại + popup tổng kết (10s) |
+| ~53s | Popup hiện — demo kết thúc, chuyển sang giải thích khôi phục |
 
-> **Điều chỉnh tốc độ:** Sửa `STEP_DELAY = 4000` (ms) trong hàm `_auto_respond()` của `defender_gui.py` nếu muốn nhanh/chậm hơn.
+> **Tổng thời gian demo tự động: ~55 giây (~1 phút)**
+
+> **Điều chỉnh tốc độ:** Sửa `STEP_DELAY = 10000` (ms) và `encrypt_delay = 10.0` (giây) nếu muốn nhanh/chậm hơn.
 
 ---
 
@@ -235,8 +239,9 @@ ls shop_data/
 
 | Thành phần | Giá trị mặc định | Cách thay đổi |
 |---|---|---|
-| Delay giữa mỗi file mã hóa | 5 giây | `encrypt_delay=` trong `RansomwareSimulator.__init__()` |
-| Delay giữa các bước phòng thủ | 4 giây | `STEP_DELAY = 4000` trong `_auto_respond()` của `defender_gui.py` |
+| Delay giữa mỗi file mã hóa | **10 giây** | `encrypt_delay=` trong `RansomwareSimulator.__init__()` |
+| Pause trước khi bước 1 bắt đầu | **3 giây** | `self.root.after(3000, step1)` trong `_auto_respond()` |
+| Delay giữa các bước phòng thủ | **10 giây** | `STEP_DELAY = 10000` trong `_auto_respond()` của `defender_gui.py` |
 
 ---
 
