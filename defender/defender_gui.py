@@ -40,12 +40,12 @@ BLU     = '#3b82f6'
 BLU_BG  = '#dbeafe'
 BLU_FG  = '#1d4ed8'
 
-SF  = ('Segoe UI', 10)
-SFB = ('Segoe UI', 10, 'bold')
-SFS = ('Segoe UI', 9)
-SFL = ('Segoe UI', 13, 'bold')
-SFM = ('Segoe UI', 11, 'bold')
-SFX = ('Segoe UI', 20, 'bold')
+SF  = ('Segoe UI', 16)
+SFB = ('Segoe UI', 16, 'bold')
+SFS = ('Segoe UI', 15)
+SFL = ('Segoe UI', 21, 'bold')
+SFM = ('Segoe UI', 19, 'bold')
+SFX = ('Segoe UI', 32, 'bold')
 
 # ── IR Phases ────────────────────────────────────────────────────────
 IR_PHASES = [
@@ -220,14 +220,14 @@ class DefenderApp:
 
     # ── Layout ──────────────────────────────────────────────────────
     def _build_layout(self):
-        sb = tk.Frame(self.root, bg=SIDEBAR, width=230)
+        sb = tk.Frame(self.root, bg=SIDEBAR, width=290)
         sb.pack(side='left', fill='y')
         sb.pack_propagate(False)
         self._sb = sb
 
-        tk.Label(sb, text='🛡', font=('Segoe UI', 26), bg=SIDEBAR, fg='#fff').pack(pady=(20, 0))
-        tk.Label(sb, text='DefenderPro', font=('Segoe UI', 13, 'bold'), bg=SIDEBAR, fg='#fff').pack()
-        tk.Label(sb, text='Ransomware HIDS System', font=('Segoe UI', 8), bg=SIDEBAR, fg='#94a3b8').pack(pady=(2, 14))
+        tk.Label(sb, text='🛡', font=('Segoe UI', 40), bg=SIDEBAR, fg='#fff').pack(pady=(20, 0))
+        tk.Label(sb, text='DefenderPro', font=('Segoe UI', 21, 'bold'), bg=SIDEBAR, fg='#fff').pack()
+        tk.Label(sb, text='Ransomware HIDS System', font=('Segoe UI', 14), bg=SIDEBAR, fg='#94a3b8').pack(pady=(2, 14))
         tk.Frame(sb, bg=SB2, height=1).pack(fill='x')
 
         self._nav_btns = {}
@@ -241,9 +241,9 @@ class DefenderApp:
         ]
         for icon, label, key in nav_items:
             btn = tk.Button(sb, text=f'  {icon}  {label}',
-                            font=('Segoe UI', 10), relief='flat', bd=0,
+                            font=('Segoe UI', 16), relief='flat', bd=0,
                             bg=SIDEBAR, fg='#cbd5e1', cursor='hand2',
-                            anchor='w', padx=16, pady=10,
+                            anchor='w', padx=18, pady=14,
                             activebackground=SB_ACT, activeforeground='#fff',
                             command=lambda k=key: self._show(k))
             btn.pack(fill='x')
@@ -251,20 +251,20 @@ class DefenderApp:
 
         tk.Frame(sb, bg=SIDEBAR).pack(fill='both', expand=True)
         tk.Frame(sb, bg=SB2, height=1).pack(fill='x')
-        tk.Label(sb, text='⚠  DEMO ONLY — Academic', font=('Segoe UI', 8, 'bold'),
+        tk.Label(sb, text='⚠  DEMO ONLY — Academic', font=('Segoe UI', 14, 'bold'),
                  bg=SIDEBAR, fg='#f87171', pady=8).pack()
 
         tk.Frame(self.root, bg=BORDER, width=1).pack(side='left', fill='y')
         self._content = tk.Frame(self.root, bg=BG)
         self._content.pack(side='left', fill='both', expand=True)
 
-        sb_bar = tk.Frame(self.root, bg=SB2, height=28)
+        sb_bar = tk.Frame(self.root, bg=SB2, height=38)
         sb_bar.pack(side='bottom', fill='x')
         self._status_var = tk.StringVar(value='Sẵn sàng')
-        tk.Label(sb_bar, textvariable=self._status_var, font=('Segoe UI', 9),
+        tk.Label(sb_bar, textvariable=self._status_var, font=('Segoe UI', 15),
                  bg=SB2, fg='#94a3b8', padx=14).pack(side='left')
         self._clock_var = tk.StringVar()
-        tk.Label(sb_bar, textvariable=self._clock_var, font=('Segoe UI', 9),
+        tk.Label(sb_bar, textvariable=self._clock_var, font=('Segoe UI', 15),
                  bg=SB2, fg='#64748b', padx=14).pack(side='right')
 
     def _clear_content(self):
@@ -279,13 +279,13 @@ class DefenderApp:
             active = (k == key)
             btn.config(bg=SB_ACT if active else SIDEBAR,
                        fg='#fff' if active else '#cbd5e1',
-                       font=('Segoe UI', 10, 'bold') if active else ('Segoe UI', 10))
+                       font=('Segoe UI', 16, 'bold') if active else ('Segoe UI', 16))
         self._clear_content()
         getattr(self, f'_panel_{key}')()
 
     # ── UI helpers ───────────────────────────────────────────────────
     def _topbar(self, title: str, subtitle: str = ''):
-        bar = tk.Frame(self._content, bg=CARD, padx=24, pady=14)
+        bar = tk.Frame(self._content, bg=CARD, padx=28, pady=18)
         bar.pack(fill='x')
         tk.Label(bar, text=title, font=SFL, bg=CARD, fg=TEXT).pack(anchor='w')
         if subtitle:
@@ -304,11 +304,11 @@ class DefenderApp:
         outer.pack(side='left', fill='both', expand=True, padx=(0, 8))
         c = tk.Frame(outer, bg=CARD, padx=14, pady=12)
         c.pack(fill='both', expand=True)
-        tk.Label(c, text=icon, font=('Segoe UI', 18), bg=CARD, fg=fg).pack(anchor='w')
+        tk.Label(c, text=icon, font=('Segoe UI', 28), bg=CARD, fg=fg).pack(anchor='w')
         if isinstance(value_var, tk.Variable):
-            tk.Label(c, textvariable=value_var, font=('Segoe UI', 15, 'bold'), bg=CARD, fg=fg).pack(anchor='w')
+            tk.Label(c, textvariable=value_var, font=('Segoe UI', 24, 'bold'), bg=CARD, fg=fg).pack(anchor='w')
         else:
-            tk.Label(c, text=value_var, font=('Segoe UI', 15, 'bold'), bg=CARD, fg=fg).pack(anchor='w')
+            tk.Label(c, text=value_var, font=('Segoe UI', 24, 'bold'), bg=CARD, fg=fg).pack(anchor='w')
         tk.Label(c, text=label, font=SFS, bg=CARD, fg=MUTED).pack(anchor='w')
 
     # ── 1. DASHBOARD ─────────────────────────────────────────────────
@@ -316,11 +316,15 @@ class DefenderApp:
         self._topbar('Dashboard — Live Monitor',
                      'Theo dõi tấn công & quá trình phòng thủ theo thời gian thực')
 
-        scroll_canvas = tk.Canvas(self._content, bg=BG, highlightthickness=0)
-        vsb = ttk.Scrollbar(self._content, orient='vertical', command=scroll_canvas.yview)
+        _sw = tk.Frame(self._content, bg=BG)
+        _sw.pack(fill='both', expand=True)
+        _sw.grid_rowconfigure(0, weight=1)
+        _sw.grid_columnconfigure(0, weight=1)
+        scroll_canvas = tk.Canvas(_sw, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(_sw, orient='vertical', command=scroll_canvas.yview)
         scroll_canvas.configure(yscrollcommand=vsb.set)
-        vsb.pack(side='right', fill='y')
-        scroll_canvas.pack(fill='both', expand=True)
+        vsb.grid(row=0, column=1, sticky='ns')
+        scroll_canvas.grid(row=0, column=0, sticky='nsew')
         body = tk.Frame(scroll_canvas, bg=BG, padx=22, pady=16)
         win = scroll_canvas.create_window((0, 0), window=body, anchor='nw')
         body.bind('<Configure>', lambda e: scroll_canvas.configure(
@@ -342,11 +346,11 @@ class DefenderApp:
             bg2 = GRN_BG if status == 'done' else AMB_BG if status == 'active' else '#f8fafc'
             box = tk.Frame(col, bg=bg2, padx=6, pady=8)
             box.pack(fill='x')
-            tk.Label(box, text=icon, font=('Segoe UI', 15), bg=bg2, fg=fg).pack()
-            tk.Label(box, text=label, font=('Segoe UI', 8, 'bold'), bg=bg2, fg=fg,
-                     wraplength=85, justify='center').pack()
+            tk.Label(box, text=icon, font=('Segoe UI', 24), bg=bg2, fg=fg).pack()
+            tk.Label(box, text=label, font=('Segoe UI', 14, 'bold'), bg=bg2, fg=fg,
+                     wraplength=120, justify='center').pack()
             mark = '✓' if status == 'done' else '●' if status == 'active' else '○'
-            lbl = tk.Label(box, text=mark, font=('Segoe UI', 11, 'bold'), bg=bg2, fg=fg)
+            lbl = tk.Label(box, text=mark, font=('Segoe UI', 19, 'bold'), bg=bg2, fg=fg)
             lbl.pack()
             self._phase_labels[key] = (box, lbl)
 
@@ -376,16 +380,16 @@ class DefenderApp:
 
         hdr_l = tk.Frame(left_inner, bg='#0d1117')
         hdr_l.pack(fill='x', pady=(0, 6))
-        self._attack_status_dot = tk.Label(hdr_l, text='●', font=('Segoe UI', 11),
+        self._attack_status_dot = tk.Label(hdr_l, text='●', font=('Segoe UI', 19),
                                             bg='#0d1117', fg='#4ade80')
         self._attack_status_dot.pack(side='left')
         tk.Label(hdr_l, text='  LIVE ATTACK FEED',
-                 font=('Segoe UI', 9, 'bold'), bg='#0d1117', fg='#e6edf3').pack(side='left')
-        tk.Button(hdr_l, text='Xóa', font=('Segoe UI', 8), bg='#21262d', fg='#64748b',
+                 font=('Segoe UI', 15, 'bold'), bg='#0d1117', fg='#e6edf3').pack(side='left')
+        tk.Button(hdr_l, text='Xóa', font=('Segoe UI', 14), bg='#21262d', fg='#64748b',
                   relief='flat', bd=0, padx=6, pady=2, cursor='hand2',
                   command=self._clear_attack_feed).pack(side='right')
 
-        self._live_feed = tk.Text(left_inner, font=('Courier New', 9),
+        self._live_feed = tk.Text(left_inner, font=('Courier New', 15),
                                    bg='#0d1117', fg='#e6edf3', relief='flat',
                                    state='disabled', wrap='word', height=18)
         feed_vsb = ttk.Scrollbar(left_inner, orient='vertical', command=self._live_feed.yview)
@@ -394,14 +398,14 @@ class DefenderApp:
         feed_vsb.pack(side='right', fill='y')
 
         # Right: Defense Steps
-        right = tk.Frame(cols_frame, bg=BORDER, padx=1, pady=1, width=280)
+        right = tk.Frame(cols_frame, bg=BORDER, padx=1, pady=1, width=360)
         right.pack(side='left', fill='y')
         right.pack_propagate(False)
         right_inner = tk.Frame(right, bg=CARD, padx=14, pady=10)
         right_inner.pack(fill='both', expand=True)
 
         tk.Label(right_inner, text='QUÁ TRÌNH PHÒNG THỦ',
-                 font=('Segoe UI', 9, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 8))
+                 font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 8))
 
         defense_steps = [
             ('preparation',    '🛡', 'Chuẩn bị & Backup định kỳ'),
@@ -417,10 +421,10 @@ class DefenderApp:
             status = self._phase.get(key, 'pending')
             fg = GRN if status == 'done' else AMB if status == 'active' else MUTED
             mark = '✓' if status == 'done' else '●' if status == 'active' else '○'
-            dot = tk.Label(row, text=mark, font=('Segoe UI', 11, 'bold'), bg=CARD, fg=fg)
+            dot = tk.Label(row, text=mark, font=('Segoe UI', 19, 'bold'), bg=CARD, fg=fg)
             dot.pack(side='left')
             lbl = tk.Label(row, text=f' {icon} {desc}',
-                           font=('Segoe UI', 9), bg=CARD, fg=fg, anchor='w', wraplength=200)
+                           font=('Segoe UI', 15), bg=CARD, fg=fg, anchor='w', wraplength=280)
             lbl.pack(side='left', fill='x', expand=True)
             self._defense_step_labels[key] = (dot, lbl)
 
@@ -428,23 +432,23 @@ class DefenderApp:
 
         # Damage summary
         tk.Label(right_inner, text='TÓM TẮT THIỆT HẠI',
-                 font=('Segoe UI', 9, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 4))
+                 font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 4))
         self._damage_enc_var  = tk.StringVar(value='0 file bị mã hóa')
         self._damage_safe_var = tk.StringVar(value='—')
         tk.Label(right_inner, textvariable=self._damage_enc_var,
-                 font=('Segoe UI', 10, 'bold'), bg=CARD, fg=RED).pack(anchor='w')
+                 font=('Segoe UI', 16, 'bold'), bg=CARD, fg=RED).pack(anchor='w')
         tk.Label(right_inner, textvariable=self._damage_safe_var,
-                 font=('Segoe UI', 10), bg=CARD, fg=GRN).pack(anchor='w')
+                 font=('Segoe UI', 16), bg=CARD, fg=GRN).pack(anchor='w')
         self._damage_msg_var = tk.StringVar(value='')
         tk.Label(right_inner, textvariable=self._damage_msg_var,
-                 font=('Segoe UI', 8), bg=CARD, fg=AMB_FG, wraplength=230, justify='left').pack(
+                 font=('Segoe UI', 14), bg=CARD, fg=AMB_FG, wraplength=300, justify='left').pack(
                  anchor='w', pady=(4, 0))
 
         tk.Frame(right_inner, bg=BORDER, height=1).pack(fill='x', pady=8)
 
         # Quick actions
         tk.Label(right_inner, text='HÀNH ĐỘNG NHANH',
-                 font=('Segoe UI', 9, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 6))
+                 font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 6))
         for txt, cmd, bg in [
             ('🔍  Quét ngay',    lambda: self._show('detect'),  ACCENT),
             ('🔒  Cô lập ngay', lambda: self._show('contain'), RED),
@@ -457,6 +461,7 @@ class DefenderApp:
         # Refresh live feed
         self._refresh_live_feed()
         self._update_defense_steps()
+
 
     def _clear_attack_feed(self):
         self._attack_events.clear()
@@ -573,7 +578,7 @@ class DefenderApp:
 
         # Real-time indicators
         ri = self._card(body, fill='x', pady=(0, 12))
-        tk.Label(ri, text='CHỈ SỐ THỜI GIAN THỰC', font=('Segoe UI', 9, 'bold'),
+        tk.Label(ri, text='CHỈ SỐ THỜI GIAN THỰC', font=('Segoe UI', 15, 'bold'),
                  bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 10))
         irow = tk.Frame(ri, bg=CARD)
         irow.pack(fill='x')
@@ -597,7 +602,7 @@ class DefenderApp:
         # Cách phát hiện
         how_card = self._card(body, fill='x', pady=(0, 12))
         tk.Label(how_card, text='CÁC PHƯƠNG PHÁP PHÁT HIỆN (HIDS — Nhóm 4)',
-                 font=('Segoe UI', 9, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 10))
+                 font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 10))
         methods = [
             ('🔴', 'Signature-based',  'Tên file/string khớp pattern ransomware đã biết'),
             ('🔴', 'Extension scan',   'Phát hiện hàng loạt file đổi đuôi → .encrypted'),
@@ -615,7 +620,7 @@ class DefenderApp:
         # File scan
         sc = self._card(body, fill='x', pady=(0, 12))
         tk.Label(sc, text='QUÉT FILE THỦ CÔNG — Chữ ký & Entropy',
-                 font=('Segoe UI', 9, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 8))
+                 font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 8))
         drow = tk.Frame(sc, bg=CARD)
         drow.pack(fill='x', pady=(0, 8))
         dir_e = tk.Entry(drow, textvariable=self._scan_dir, font=SF, bg='#f8faff', fg=TEXT,
@@ -640,14 +645,14 @@ class DefenderApp:
         rc = self._card(body, fill='both', expand=True)
         hdr = tk.Frame(rc, bg=CARD)
         hdr.pack(fill='x', pady=(0, 8))
-        tk.Label(hdr, text='KẾT QUẢ PHÁT HIỆN', font=('Segoe UI', 9, 'bold'), bg=CARD, fg=MUTED).pack(side='left')
+        tk.Label(hdr, text='KẾT QUẢ PHÁT HIỆN', font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(side='left')
         self._det_summary = tk.Label(hdr, text='', font=SFS, bg=CARD, fg=MUTED)
         self._det_summary.pack(side='right')
         cols = ('severity', 'reason', 'file', 'detail')
         style = ttk.Style()
-        style.configure('Det.Treeview', rowheight=26, font=('Segoe UI', 9),
+        style.configure('Det.Treeview', rowheight=42, font=('Segoe UI', 15),
                          background=CARD, fieldbackground=CARD, foreground=TEXT)
-        style.configure('Det.Treeview.Heading', font=('Segoe UI', 9, 'bold'), background=BG)
+        style.configure('Det.Treeview.Heading', font=('Segoe UI', 15, 'bold'), background=BG)
         style.map('Det.Treeview', background=[('selected', ACC_BG)])
         self._tree = ttk.Treeview(rc, columns=cols, show='headings',
                                    style='Det.Treeview', height=10)
@@ -740,15 +745,15 @@ class DefenderApp:
         warn_box = tk.Frame(body, bg=RED_BG, padx=16, pady=12)
         warn_box.pack(fill='x', pady=(0, 14))
         tk.Label(warn_box, text='⚠  TUYỆT ĐỐI KHÔNG TẮT NGUỒN MÁY CHỦ',
-                 font=('Segoe UI', 11, 'bold'), bg=RED_BG, fg=RED_FG).pack(anchor='w')
+                 font=('Segoe UI', 19, 'bold'), bg=RED_BG, fg=RED_FG).pack(anchor='w')
         tk.Label(warn_box,
                  text='Tắt nguồn sẽ mất dấu vết mã độc trong RAM và gây khó khăn cho điều tra pháp y.',
-                 font=SFS, bg=RED_BG, fg=RED_FG, wraplength=700, justify='left').pack(anchor='w')
+                 font=SFS, bg=RED_BG, fg=RED_FG, wraplength=900, justify='left').pack(anchor='w')
 
         # Step 1: Maintenance mode
         s1 = self._card(body, fill='x', pady=(0, 10))
         tk.Label(s1, text='BƯỚC 1 — Ngắt giao dịch (Maintenance Mode)',
-                 font=('Segoe UI', 10, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
+                 font=('Segoe UI', 16, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
         tk.Label(s1, text='Dừng mọi giao dịch mới, ngăn mã độc tiếp tục thu thập dữ liệu khách hàng.',
                  font=SFS, bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 8))
         self._maint_var = tk.StringVar(value='⚪  Chưa kích hoạt')
@@ -764,7 +769,7 @@ class DefenderApp:
         # Step 2: Kill processes
         s2 = self._card(body, fill='x', pady=(0, 10))
         tk.Label(s2, text='BƯỚC 2 — Dừng tiến trình độc hại',
-                 font=('Segoe UI', 10, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
+                 font=('Segoe UI', 16, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
         tk.Label(s2, text='Buộc dừng ProManagerSuite và các tiến trình liên quan đang chạy.',
                  font=SFS, bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 8))
         self._proc_status = tk.Label(s2, text='', font=SFS, bg=CARD, fg=MUTED)
@@ -777,7 +782,7 @@ class DefenderApp:
         # Step 3: Quarantine
         s3 = self._card(body, fill='x', pady=(0, 10))
         tk.Label(s3, text='BƯỚC 3 — Cô lập file mã độc (Eradication)',
-                 font=('Segoe UI', 10, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
+                 font=('Segoe UI', 16, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
         tk.Label(s3, text='Di chuyển ProManagerSuite.exe sang thư mục quarantine để tiêu diệt.',
                  font=SFS, bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 8))
         self._quar_status = tk.Label(s3, text='', font=SFS, bg=CARD, fg=MUTED)
@@ -794,7 +799,7 @@ class DefenderApp:
         # Step 4: Network isolation
         s4 = self._card(body, fill='x')
         tk.Label(s4, text='BƯỚC 4 — Cô lập mạng (Ghi chú thực tế)',
-                 font=('Segoe UI', 10, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
+                 font=('Segoe UI', 16, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
         notes = [
             '• Rút cáp mạng vật lý hoặc ngắt vSwitch của máy chủ bị nhiễm.',
             '• Mục đích: Chặn Ransomware gửi dữ liệu ra ngoài (Double Extortion).',
@@ -893,22 +898,22 @@ class DefenderApp:
         if enc > 0:
             tk.Label(dmg_box,
                      text=f'🔴  {enc} file đã bị mã hóa — Chỉ có backup trước tấn công mới khôi phục được!',
-                     font=('Segoe UI', 11, 'bold'), bg=dmg_bg, fg=dmg_fg).pack(anchor='w')
+                     font=('Segoe UI', 19, 'bold'), bg=dmg_bg, fg=dmg_fg).pack(anchor='w')
             tk.Label(dmg_box,
                      text='Không có key của kẻ tấn công → file bị mã hóa sẽ mất vĩnh viễn trừ khi có backup sạch.',
-                     font=SFS, bg=dmg_bg, fg=dmg_fg, wraplength=750).pack(anchor='w')
+                     font=SFS, bg=dmg_bg, fg=dmg_fg, wraplength=950).pack(anchor='w')
         else:
             tk.Label(dmg_box,
                      text='✓  Dữ liệu hiện tại an toàn — Backup ngay để phòng khi bị tấn công!',
-                     font=('Segoe UI', 11, 'bold'), bg=dmg_bg, fg=dmg_fg).pack(anchor='w')
+                     font=('Segoe UI', 19, 'bold'), bg=dmg_bg, fg=dmg_fg).pack(anchor='w')
 
         # Backup management
         bc = self._card(body, fill='x', pady=(0, 12))
         tk.Label(bc, text='BACKUP ĐỊNH KỲ — Phòng thủ chủ động',
-                 font=('Segoe UI', 10, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
+                 font=('Segoe UI', 16, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 4))
         tk.Label(bc, text='Backup định kỳ là BIỆN PHÁP PHÒNG THỦ HIỆU QUẢ NHẤT chống ransomware. '
                            'Backup phải được lưu tách biệt khỏi mạng nội bộ (offline backup).',
-                 font=SFS, bg=CARD, fg=MUTED, wraplength=750).pack(anchor='w', pady=(0, 10))
+                 font=SFS, bg=CARD, fg=MUTED, wraplength=950).pack(anchor='w', pady=(0, 10))
 
         def dir_row(lbl_text, var):
             r = tk.Frame(bc, bg=CARD)
@@ -951,7 +956,7 @@ class DefenderApp:
         hc = self._card(body, fill='x', pady=(0, 12))
         hdr = tk.Frame(hc, bg=CARD)
         hdr.pack(fill='x', pady=(0, 8))
-        tk.Label(hdr, text='LỊCH SỬ BACKUP — Chọn để khôi phục', font=('Segoe UI', 9, 'bold'),
+        tk.Label(hdr, text='LỊCH SỬ BACKUP — Chọn để khôi phục', font=('Segoe UI', 15, 'bold'),
                  bg=CARD, fg=MUTED).pack(side='left')
         tk.Label(hdr, text='Khôi phục từ backup = 100% dữ liệu tại thời điểm backup',
                  font=SFS, bg=CARD, fg=GRN_FG).pack(side='right')
@@ -962,23 +967,23 @@ class DefenderApp:
         # ── Demo: Giải mã bằng key kẻ tấn công ──────────────────────
         sep = tk.Frame(body, bg=AMB_BG, padx=16, pady=10)
         sep.pack(fill='x', pady=(6, 0))
-        tk.Label(sep, text='━━━  CHỈ DÀNH CHO DEMO  ━━━', font=('Segoe UI', 9, 'bold'),
+        tk.Label(sep, text='━━━  CHỈ DÀNH CHO DEMO  ━━━', font=('Segoe UI', 15, 'bold'),
                  bg=AMB_BG, fg=AMB_FG).pack(anchor='w')
         tk.Label(sep,
                  text='Trong thực tế: sau khi trả tiền chuộc, kẻ tấn công gửi key giải mã. '
                       'Ô bên dưới mô phỏng bước này. Key hợp lệ là nội dung file shop_data/.ransom_key.',
-                 font=SFS, bg=AMB_BG, fg=AMB_FG, wraplength=750).pack(anchor='w')
+                 font=SFS, bg=AMB_BG, fg=AMB_FG, wraplength=950).pack(anchor='w')
 
         kc = self._card(body, fill='x', pady=(0, 0))
         tk.Label(kc, text='🔑 GIẢI MÃ BẰNG KEY CỦA KẺ TẤN CÔNG (sau khi trả tiền chuộc)',
-                 font=('Segoe UI', 10, 'bold'), bg=CARD, fg=AMB_FG).pack(anchor='w', pady=(0, 6))
+                 font=('Segoe UI', 16, 'bold'), bg=CARD, fg=AMB_FG).pack(anchor='w', pady=(0, 6))
         tk.Label(kc, text='Nhập key nhận được từ kẻ tấn công để giải mã file:',
                  font=SFS, bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 6))
 
         key_row = tk.Frame(kc, bg=CARD)
         key_row.pack(fill='x', pady=(0, 8))
         self._ransom_key_var = tk.StringVar()
-        ke = tk.Entry(key_row, textvariable=self._ransom_key_var, font=('Courier New', 9),
+        ke = tk.Entry(key_row, textvariable=self._ransom_key_var, font=('Courier New', 15),
                       bg='#f8faff', fg=TEXT, relief='flat', highlightthickness=1,
                       highlightbackground=AMB, highlightcolor=AMB, show='*')
         ke.pack(side='left', fill='x', expand=True, ipady=6, padx=(0, 8))
@@ -1125,11 +1130,15 @@ class DefenderApp:
         body = tk.Frame(self._content, bg=BG, padx=22, pady=14)
         body.pack(fill='both', expand=True)
 
-        scroll_canvas = tk.Canvas(body, bg=BG, highlightthickness=0)
-        vsb = ttk.Scrollbar(body, orient='vertical', command=scroll_canvas.yview)
+        _rw = tk.Frame(body, bg=BG)
+        _rw.pack(fill='both', expand=True)
+        _rw.grid_rowconfigure(0, weight=1)
+        _rw.grid_columnconfigure(0, weight=1)
+        scroll_canvas = tk.Canvas(_rw, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(_rw, orient='vertical', command=scroll_canvas.yview)
         scroll_canvas.configure(yscrollcommand=vsb.set)
-        vsb.pack(side='right', fill='y')
-        scroll_canvas.pack(fill='both', expand=True)
+        vsb.grid(row=0, column=1, sticky='ns')
+        scroll_canvas.grid(row=0, column=0, sticky='nsew')
         inner = tk.Frame(scroll_canvas, bg=BG)
         win = scroll_canvas.create_window((0, 0), window=inner, anchor='nw')
         inner.bind('<Configure>', lambda e: scroll_canvas.configure(
@@ -1143,7 +1152,7 @@ class DefenderApp:
         bkps   = BackupManager(self._src_dir.get(), self._bak_dir.get()).list_backups()
 
         da = self._card(inner, fill='x', pady=(0, 12))
-        tk.Label(da, text='ĐÁNH GIÁ THIỆT HẠI', font=('Segoe UI', 10, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 10))
+        tk.Label(da, text='ĐÁNH GIÁ THIỆT HẠI', font=('Segoe UI', 16, 'bold'), bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 10))
 
         dmg_bg = RED_BG if enc > 0 else GRN_BG
         dmg_fg = RED_FG if enc > 0 else GRN_FG
@@ -1163,7 +1172,7 @@ class DefenderApp:
             for f in enc_list:
                 orig = f[:-len('.encrypted')]
                 tk.Label(da, text=f'  🔒  {orig}  →  {f}',
-                         font=('Courier New', 9), bg=CARD, fg=RED_FG).pack(anchor='w')
+                         font=('Courier New', 15), bg=CARD, fg=RED_FG).pack(anchor='w')
 
         rows = [
             ('Loại mã độc',          'Ransomware (ProManager Suite)'),
@@ -1183,7 +1192,7 @@ class DefenderApp:
 
         # IR phases
         ph = self._card(inner, fill='x', pady=(0, 12))
-        tk.Label(ph, text='TIẾN ĐỘ CÁC GIAI ĐOẠN ỨNG PHÓ', font=('Segoe UI', 10, 'bold'),
+        tk.Label(ph, text='TIẾN ĐỘ CÁC GIAI ĐOẠN ỨNG PHÓ', font=('Segoe UI', 16, 'bold'),
                  bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 10))
         for key, label, icon in IR_PHASES:
             status = self._phase[key]
@@ -1195,7 +1204,7 @@ class DefenderApp:
 
         # Actions
         ac = self._card(inner, fill='x', pady=(0, 12))
-        tk.Label(ac, text='CÁC HÀNH ĐỘNG ĐÃ THỰC HIỆN', font=('Segoe UI', 10, 'bold'),
+        tk.Label(ac, text='CÁC HÀNH ĐỘNG ĐÃ THỰC HIỆN', font=('Segoe UI', 16, 'bold'),
                  bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 8))
         if self._incident_actions:
             for i, act in enumerate(self._incident_actions, 1):
@@ -1206,7 +1215,7 @@ class DefenderApp:
 
         # Lessons learned
         ll = self._card(inner, fill='x', pady=(0, 12))
-        tk.Label(ll, text='RÚT KINH NGHIỆM (Lessons Learned)', font=('Segoe UI', 10, 'bold'),
+        tk.Label(ll, text='RÚT KINH NGHIỆM (Lessons Learned)', font=('Segoe UI', 16, 'bold'),
                  bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 8))
         lessons = [
             ('Không chạy .exe lạ',   'Không tải và kích hoạt phần mềm từ nguồn không xác minh'),
@@ -1273,11 +1282,11 @@ class DefenderApp:
         lc = self._card(body, fill='both', expand=True)
         hdr = tk.Frame(lc, bg=CARD)
         hdr.pack(fill='x', pady=(0, 8))
-        tk.Label(hdr, text='EVENT LOG', font=('Segoe UI', 9, 'bold'), bg=CARD, fg=MUTED).pack(side='left')
+        tk.Label(hdr, text='EVENT LOG', font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(side='left')
         tk.Button(hdr, text='Xóa log', font=SFS, bg=RED_BG, fg=RED_FG,
                   relief='flat', bd=0, padx=10, pady=3, cursor='hand2',
                   command=self._clear_log).pack(side='right')
-        self._log_text = tk.Text(lc, font=('Courier New', 10), bg='#0d1117', fg='#e6edf3',
+        self._log_text = tk.Text(lc, font=('Courier New', 16), bg='#0d1117', fg='#e6edf3',
                                   relief='flat', state='disabled', wrap='word')
         vsb = ttk.Scrollbar(lc, orient='vertical', command=self._log_text.yview)
         self._log_text.configure(yscrollcommand=vsb.set)
@@ -1358,7 +1367,7 @@ class DefenderApp:
         self._incident_actions.append('HIDS phát hiện ransomware — kích hoạt auto-respond')
         self._set_phase_active('identification')
 
-        STEP_DELAY = 4000   # ms giữa mỗi bước — điều chỉnh ở đây nếu muốn nhanh/chậm hơn
+        STEP_DELAY = 10000  # ms giữa mỗi bước — điều chỉnh ở đây nếu muốn nhanh/chậm hơn
 
         def step1():
             self._emit_event('', 'info')
@@ -1481,7 +1490,7 @@ class DefenderApp:
                 f'→ Xem "Báo cáo sự cố" để xem chi tiết.'
             ))
 
-        self.root.after(500, step1)
+        self.root.after(3000, step1)  # 3s pause — cho người trình bày giải thích banner đỏ trước
 
     # ── Backup logic ─────────────────────────────────────────────────
     def _run_backup(self):

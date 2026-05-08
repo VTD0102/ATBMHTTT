@@ -12,7 +12,6 @@
 | **Tiện ích & Giám sát** | Tính entropy, liệt kê tiến trình, các helper UI. | `defender_gui.py`, `behavior_monitor.py`, `static_analyzer.py` |
 
 Hệ thống tuân theo **vòng đời IR theo chuẩn NIST** (chuẩn bị, xác định, cô lập, tiêu diệt, phục hồi, rút kinh nghiệm) và được hiển thị trực quan qua UI.
-
 ---
 
 ## 2️⃣ Điểm mạnh
