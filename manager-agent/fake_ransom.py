@@ -20,6 +20,10 @@ class FakeRansomApp:
         self.root.title('⚠ YOUR FILES HAVE BEEN ENCRYPTED')
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg=BG)
+        
+        # thêm escape key cho màn hình tống tiền
+        self.root.bind('<Escape>',   lambda e: self.root.destroy())
+        self.root.bind('<Control-q>', lambda e: self.root.destroy())
 
         outer = tk.Frame(self.root, bg=BORDER)
         outer.pack(fill='both', expand=True, padx=3, pady=3)
