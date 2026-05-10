@@ -38,3 +38,17 @@ ransomware-demo/attacker/sandbox/*.encrypted
 ransomware-demo/attacker/sandbox/.ransom_key
 ransomware-demo/backups/
 backups/
+
+# Thư viện Node.js
+node_modules/
+
+# Thư mục build / output
+dist/
+build/
+.next/
+out/
+
+# Các file debug/log của Node
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
