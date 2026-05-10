@@ -10,7 +10,7 @@ Dự án demo học thuật cho môn **An Toàn Bảo Mật Hệ Thống Thông 
 
 | Thành phần | Vai trò |
 |---|---|
-| `manager-agent/` | Mã độc — GUI ProManager Suite giả mạo + ransomware engine |
+| `manager-agent/` | Mã độc — GUI ProManager Suite giả mạo + ransomware engine + C2 server |
 | `shop_data/` | Dữ liệu nạn nhân — file TMĐT mẫu dùng làm sandbox |
 | `defender/` | Phần mềm bảo vệ — HIDS scanner, backup định kỳ, GUI defender |
 | `landing-web/` | Trang web quảng cáo giả (React + Vite) phát tán file exe |
@@ -26,12 +26,13 @@ Dự án demo học thuật cho môn **An Toàn Bảo Mật Hệ Thống Thông 
 │   ├── ProManagerSuite.exe      # File ELF PyInstaller (~14 MB) — nạn nhân tải về
 │   ├── fake_manager.py          # GUI ProManager giả (activation → dashboard → ransom)
 │   ├── fake_ransom.py           # Màn hình ransom note fullscreen + countdown
-│   └── ransomware_simulator.py  # Engine mã hóa Fernet — 5s/file (sandbox-only)
+│   ├── fake_installer.py        # Installer giả (tùy chọn)
+│   └── c2_server.py             # C&C server (Flask) — nhận key từ nạn nhân
 │
-├── shop_data/                   # Dữ liệu TMĐT mẫu (invoice, customer, contract…)
+├── shop_data/                   # Dữ liệu TMĐT mẫu — xem bảng trạng thái bên dưới
 │
 ├── defender/
-│   ├── defender_gui.py          # GUI HIDS — Live Feed, Phát hiện, Cô lập, Backup
+│   ├── defender_gui.py          # GUI HIDS — Dashboard, Phát hiện, Cô lập, Backup
 │   ├── scanner.py               # CLI — quét entropy + đuôi .encrypted
 │   ├── decryptor.py             # CLI — giải mã .encrypted bằng .ransom_key
 │   ├── backup_manager.py        # CLI — tạo/list/restore backup tar.gz
@@ -43,8 +44,23 @@ Dự án demo học thuật cho môn **An Toàn Bảo Mật Hệ Thống Thông 
 │   ├── public/ProManagerSuite.exe
 │   └── src/components/
 │
-└── backups/                     # Backup sinh ra khi demo
+├── backups/                     # Backup sinh ra khi demo
+├── MAINTENANCE.flag             # Tạo tự động khi bật Maintenance Mode
+├── NETWORK_ISOLATED.flag        # Tạo khi mô phỏng ngắt mạng
+└── RANSOMWARE_DETECTED.flag     # Tạo khi HIDS xác nhận tấn công ransomware
 ```
+
+---
+
+## Trạng thái `shop_data/` qua các giai đoạn
+
+| Giai đoạn | Nội dung `shop_data/` |
+|---|---|
+| **Trước tấn công** (sạch) | `file.txt` — chỉ file dữ liệu gốc |
+| **Trong/sau khi bị mã hóa** | `file.txt.encrypted` + `file.txt.demo_original` |
+| **Sau reset** (`mv`) | `file.txt` — chỉ file dữ liệu gốc |
+
+> `.demo_original` **không** phải file có sẵn — chúng được TẠO RA bởi quá trình mã hóa (file gốc bị đổi tên sang `.demo_original` để lưu tạm). Sau khi reset bằng `mv`, chỉ còn file gốc, không trùng lặp.
 
 ---
 
@@ -52,13 +68,14 @@ Dự án demo học thuật cho môn **An Toàn Bảo Mật Hệ Thống Thông 
 
 - Python 3.10+ với `tkinter`
 - `cryptography` (bắt buộc)
+- `flask` (bắt buộc — cho C2 server)
 - `yara-python` (tùy chọn — dùng trong `static_analyzer.py`)
 - Node.js 18+ (chỉ cho landing page)
 
 ```bash
 # Arch Linux
 sudo pacman -S tk
-python3 -m pip install cryptography yara-python
+pip install cryptography flask yara-python --break-system-packages
 ```
 
 ---
@@ -72,11 +89,13 @@ Nạn nhân truy cập landing-web (React site)
       → Màn hình Activation (nhập API key bất kỳ)
       → Màn hình "Verifying..." fullscreen (~2.4s)
       → Dashboard ProManager giả (sidebar, project cards, task list)
-          → Ngầm: ransomware_simulator.py bắt đầu mã hóa (5s/file)
+          → Ngầm: với mỗi file trong sandbox:
+              file.txt  →  đổi tên  →  file.txt.demo_original  (bản gốc được giữ lại)
+                        →  tạo mới  →  file.txt.encrypted       (bản mã hóa)
+          → Ngầm: key được gửi đến C2 server (localhost:8888)
+          → Key cục bộ bị XÓA sau khi C2 xác nhận nhận
       → Sau ~10s: fake_ransom.py fullscreen
-          → Yêu cầu 59.000.000 VND + countdown
-          → File gốc → file.encrypted (tiếp tục cho đến hết)
-          → Khóa mã hóa lưu tại shop_data/.ransom_key
+          → Yêu cầu 59.000.000 VND + countdown timer
 ```
 
 ---
@@ -86,139 +105,169 @@ Nạn nhân truy cập landing-web (React site)
 ### Bước 0 — Đảm bảo dữ liệu sạch
 
 ```bash
-# Kiểm tra shop_data không có file .encrypted
-ls shop_data/
+# Nếu shop_data còn .demo_original từ lần demo trước → khôi phục bằng mv
+for f in shop_data/*.demo_original; do mv "$f" "${f%.demo_original}"; done
+# Dọn sạch file mã hóa và các flag
+rm -f shop_data/*.encrypted shop_data/.ransom_key
+rm -f MAINTENANCE.flag NETWORK_ISOLATED.flag RANSOMWARE_DETECTED.flag
+```
 
-# Nếu có file .encrypted từ lần demo trước, restore lại:
-python3 manager-agent/ransomware_simulator.py decrypt
+> `mv` (không phải `cp`) — tiêu thụ file `.demo_original`, chỉ giữ lại file gốc, tránh trùng lặp.
+
+---
+
+### Bước 1 — Khởi động C2 Server (terminal 1)
+
+```bash
+python3 manager-agent/c2_server.py
+```
+
+```
+[C&C] Server started on http://localhost:8888
+[C&C] Waiting for victims...
 ```
 
 ---
 
-### Bước 1 — Mở Defender GUI (mở TRƯỚC khi chạy attack)
+### Bước 2 — Mở Defender GUI (terminal 2, mở TRƯỚC khi chạy attack)
 
 ```bash
 python3 defender/defender_gui.py
 ```
 
-GUI sẽ hiện **Dashboard — Live Monitor** với:
-- **Live Attack Feed** (terminal đen bên trái) — hiển thị sự kiện theo thời gian thực
-- **Quá trình Phòng thủ** (bên phải) — 5 bước tick dần khi hoàn thành
-- Dot nhấp nháy xanh = đang giám sát, đỏ = đang bị tấn công
-
-> Khuyến nghị demo: để màn hình Defender và màn hình Attack chạy song song (split screen hoặc 2 màn hình).
+Dashboard hiện:
+- **Live Attack Feed** (terminal đen) — sự kiện theo thời gian thực
+- **Quá trình phòng thủ** — 7 bước NIST IR tick dần
+- Dot xanh = đang giám sát / Dot đỏ = đang bị tấn công
 
 ---
 
-### Bước 2 — Chạy Attack (trên màn hình/terminal khác)
+### Bước 3 — Backup TRƯỚC khi tấn công
 
-**Cách A — Đầy đủ (khuyến nghị cho demo):**
+Mở panel **"Backup & Khôi phục"** → nhấn **"💾 Backup ngay"**.
+
+Backup tự động bỏ qua `*.encrypted`, `*.demo_original`, `.ransom_key` — chỉ lưu file dữ liệu sạch.
+
+---
+
+### Bước 4 — Chạy Attack (terminal 3)
+
+**Cách A — Đầy đủ (khuyến nghị):**
 ```bash
 python3 manager-agent/fake_manager.py
-# Nhập API key bất kỳ → Activate License
-# Dashboard xuất hiện → tự động trigger mã hóa sau ~10s
+# Nhập API key bất kỳ → Activate → Dashboard xuất hiện → mã hóa sau ~10s
 ```
 
-**Cách B — Chỉ mã hóa (không có GUI giả):**
+**Cách B — Chỉ mã hóa:**
 ```bash
-python3 manager-agent/ransomware_simulator.py
+python3 -c "
+import sys; sys.path.insert(0, 'manager-agent')
+from fake_manager import trigger_encryption
+trigger_encryption('shop_data')
+"
 ```
-
-**Tốc độ:** mỗi file bị mã hóa cách nhau **10 giây** → 8 file × 10s = ~80 giây nếu không bị chặn.
 
 ---
 
-### Bước 3 — Quan sát Live Feed trên Defender GUI
+### Bước 5 — Quan sát Live Feed
 
-Khi file đầu tiên bị mã hóa, HIDS tự động phát hiện và thực hiện 4 bước ứng phó:
-
-| Thời điểm | Sự kiện hiển thị trên Live Feed |
+| Thời điểm | Sự kiện |
 |---|---|
-| ~10s | File đầu tiên bị mã hóa: `⚠ ENCRYPT: customer_data.csv → ...encrypted` |
-| ~10s | `🔴 HIDS PHÁT HIỆN TẤN CÔNG RANSOMWARE!` — banner đỏ xuất hiện |
-| ~13s | `🔍 [Bước 1/4]` Xác nhận tấn công, mô tả phương pháp phát hiện (10s) |
-| ~20s | File thứ hai bị mã hóa trong lúc bước 1 đang chạy |
-| ~23s | `🔒 [Bước 2/4]` Kill process + bật Maintenance Mode (10s) |
-| ~33s | `💾 [Bước 3/4]` Backup khẩn cấp dữ liệu còn lại (10s) |
-| ~43s | `📋 [Bước 4/4]` Đánh giá thiệt hại + popup tổng kết (10s) |
-| ~53s | Popup hiện — demo kết thúc, chuyển sang giải thích khôi phục |
+| ~10s | `⚠ ENCRYPT: customer_data.csv → ...encrypted` |
+| ~10s | `🔴 HIDS PHÁT HIỆN TẤN CÔNG RANSOMWARE!` |
+| ~13s | `🔍 [Bước 1/4]` Xác nhận + ghi `RANSOMWARE_DETECTED.flag` |
+| ~23s | `🔒 [Bước 2/4]` Kill process + bật Maintenance Mode |
+| ~33s | `💾 [Bước 3/4]` Backup khẩn cấp (chỉ file sạch) |
+| ~43s | `📋 [Bước 4/4]` Đánh giá thiệt hại + popup |
+| ~53s | `♻ [Bước 5/5]` Tự động tìm backup sạch và khôi phục |
 
-> **Tổng thời gian demo tự động: ~55 giây (~1 phút)**
-
-> **Điều chỉnh tốc độ:** Sửa `STEP_DELAY = 10000` (ms) và `encrypt_delay = 10.0` (giây) nếu muốn nhanh/chậm hơn.
+> Điều chỉnh tốc độ: `STEP_DELAY = 10000` (ms) trong `_auto_respond()` của `defender_gui.py`.
 
 ---
 
-### Bước 4 — Khôi phục dữ liệu
+### Bước 6 — Khôi phục dữ liệu
 
-Mở panel **"Backup & Khôi phục"** trên Defender GUI:
+**Phương án 1 — Restore từ backup** (trong Defender GUI):
+- Panel "Backup & Khôi phục" → chọn backup → **"Khôi phục từ backup"**
+- Sau restore: `*.encrypted` bị xóa sạch (kể cả file `.encrypted` trong backup cũ), chỉ còn file gốc
+- `RANSOMWARE_DETECTED.flag` và `_under_attack` tự reset
 
-**Phương án 1 — Restore từ backup (thực tế):**
-- Chọn backup trong danh sách → nhấn **"Khôi phục từ backup"**
-- Backup khẩn cấp (`backup_emergency_*.tar.gz`) được tạo tự động khi HIDS phát hiện
+**Phương án 2 — Giải mã bằng key** (mô phỏng trả tiền chuộc):
+- Panel "Backup & Khôi phục" → mục "Giải mã bằng key kẻ tấn công" (nền vàng)
 
-**Phương án 2 — Giải mã bằng key (mô phỏng trả tiền chuộc):**
-- Mục "Giải mã bằng key kẻ tấn công" ở cuối panel (nền vàng)
-- Nhấn **"Demo Key?"** để xem key hiện tại
-- Nhập key → nhấn **"Giải mã với key này"**
-
-**CLI (ngoài GUI):**
+**CLI:**
 ```bash
-# Restore từ backup
-python3 defender/backup_manager.py restore backups/backup_emergency_YYYYMMDD_HHMMSS.tar.gz
-
-# Giải mã trực tiếp bằng .ransom_key (CLI)
-python3 defender/decryptor.py shop_data/
-
-# Hoặc dùng simulator (nhanh nhất để reset sau demo)
-python3 manager-agent/ransomware_simulator.py decrypt
+python3 defender/backup_manager.py restore backups/backup_YYYYMMDD_HHMMSS.tar.gz
+python3 defender/decryptor.py shop_data/   # nếu .ransom_key còn local
 ```
 
 ---
 
-### Bước 5 — Reset sau demo
+### Bước 7 — Reset sau demo
 
 ```bash
-# Giải mã toàn bộ file .encrypted
-python3 manager-agent/ransomware_simulator.py decrypt
-
-# Dọn flag maintenance / network isolation
-rm -f MAINTENANCE.flag NETWORK_ISOLATED.flag
-
-# Kiểm tra lại
-ls shop_data/
+for f in shop_data/*.demo_original; do mv "$f" "${f%.demo_original}"; done
+rm -f shop_data/*.encrypted shop_data/.ransom_key
+rm -f MAINTENANCE.flag NETWORK_ISOLATED.flag RANSOMWARE_DETECTED.flag
 ```
 
 ---
 
-## Các tính năng của Defender GUI
+## Defender GUI — Tính năng
 
-### Dashboard — Live Monitor
+### Dashboard
 
-- **Live Attack Feed**: terminal đen hiển thị từng file bị mã hóa, từng bước ứng phó theo thời gian thực
-- **Quá trình phòng thủ**: 5 bước tick dần (Chuẩn bị → Phát hiện → Cô lập → Backup → Đánh giá)
-- **Tóm tắt thiệt hại**: số file bị mã hóa, trạng thái backup khẩn cấp
+- **Stat cards**: file bị mã hóa · tổng file · tiến trình độc hại · trạng thái hệ thống
+- Trạng thái hệ thống: `Đang bảo vệ ✓` / `⚠ ĐANG BỊ TẤN CÔNG` / `🔴 RANSOMWARE ĐÃ XÂM NHẬP`
+- **Live Attack Feed**: terminal đen realtime
+- **7 bước NIST IR**: Chuẩn bị → Phát hiện → Cô lập → Backup → Đánh giá → Khôi phục → Rút kinh nghiệm
 
 ### Phát hiện — HIDS
 
-- Chỉ số thời gian thực: file `.encrypted`, tiến trình độc hại, ransom key
-- Quét thủ công: signature-based + entropy anomaly (>7.2 bits = HIGH)
-- Extension scan, process monitoring
+4 chỉ số thời gian thực:
+
+| Indicator | Nội dung |
+|---|---|
+| File `.encrypted` | Số file đã bị mã hóa |
+| Tiến trình độc hại | Tên process đang chạy |
+| Ransom key | Có/không `.ransom_key` trong `shop_data/` |
+| **Ransomware flag** | `🔴 ĐÃ XÁC NHẬN` khi `RANSOMWARE_DETECTED.flag` tồn tại |
+
+Quét thủ công: signature-based, entropy anomaly (>7.2 bits), extension scan, process monitor.
 
 ### Cô lập & Tiêu diệt
 
-- Dừng tiến trình (`pkill`)
-- Bật Maintenance Mode
+- `pkill` tiến trình độc hại
+- Bật Maintenance Mode (`MAINTENANCE.flag`)
 - Quarantine exe
-- Mô phỏng ngắt mạng (tạo `NETWORK_ISOLATED.flag`)
+- Mô phỏng ngắt mạng (`NETWORK_ISOLATED.flag`)
 
 ### Backup & Khôi phục
 
-- Backup định kỳ tự động (1h/3h/6h/12h/24h)
-- Lịch sử backup + restore
-- Mục "Giải mã bằng key" (demo — mô phỏng sau khi trả tiền chuộc)
+- Backup định kỳ tự động (1h/3h/6h/12h/24h), giữ tối đa N bản
+- **Backup bỏ qua**: `*.encrypted`, `*.demo_original`, `.ransom_key`
+- **Restore 3-pass**: xóa infected trước extract → xóa infected trong subdir → xóa infected sau extract
+- `RANSOMWARE_DETECTED.flag` và `_under_attack` tự reset sau restore thành công
 
-> **Triết lý phòng thủ:** Defender chỉ giảm thiểu thiệt hại, không tự giải mã được. Backup định kỳ là biện pháp phòng thủ hiệu quả nhất.
+---
+
+## Flag files
+
+| File | Tạo bởi | Ý nghĩa | Xóa khi |
+|---|---|---|---|
+| `MAINTENANCE.flag` | HIDS auto-respond bước 2 | Ngừng giao dịch, bảo trì | Thủ công |
+| `NETWORK_ISOLATED.flag` | Thủ công (Cô lập) | Mô phỏng ngắt mạng | Thủ công |
+| `RANSOMWARE_DETECTED.flag` | HIDS auto-respond bước 1 | Xác nhận tấn công (JSON) | Tự động sau restore |
+
+**Nội dung `RANSOMWARE_DETECTED.flag`:**
+```json
+{
+  "detected_at": "2026-05-10T15:18:57",
+  "files_encrypted": 8,
+  "attack_type": "ransomware",
+  "status": "active"
+}
+```
 
 ---
 
@@ -226,50 +275,47 @@ ls shop_data/
 
 | Phương pháp | Mô tả |
 |---|---|
-| **Signature-based** | Tên file/string khớp pattern ransomware đã biết (`promanagersuite`, `ransomware`…) → CRITICAL |
+| **Signature-based** | Tên file/string khớp pattern (`promanagersuite`, `ransomware`…) → CRITICAL |
 | **Extension scan** | Hàng loạt file đổi đuôi → `.encrypted` trong thời gian ngắn |
 | **Anomaly (entropy)** | Entropy > 7.2 bits → file bị đóng gói/mã hóa → HIGH |
 | **Behavior-based** | File bị đọc rồi xóa liên tục (Disk I/O spike) |
 | **Process monitor** | Tiến trình lạ đang chạy (pgrep pattern matching) |
-| **YARA rules** | 3 rules trong `rules/ransomware.yar` — phân tích tĩnh |
+| **YARA rules** | 3 rules trong `rules/ransomware.yar` |
 
 ---
 
-## Tốc độ mô phỏng
+## C2 Server
 
-| Thành phần | Giá trị mặc định | Cách thay đổi |
-|---|---|---|
-| Delay giữa mỗi file mã hóa | **10 giây** | `encrypt_delay=` trong `RansomwareSimulator.__init__()` |
-| Pause trước khi bước 1 bắt đầu | **3 giây** | `self.root.after(3000, step1)` trong `_auto_respond()` |
-| Delay giữa các bước phòng thủ | **10 giây** | `STEP_DELAY = 10000` trong `_auto_respond()` của `defender_gui.py` |
+`manager-agent/c2_server.py` — Flask, lắng nghe `http://localhost:8888`:
+
+- Nhận POST `/register`: `{ victim_id, hostname, key, files }`
+- Lưu vào `c2_victims.json`
+- Khi C2 xác nhận → `fake_manager.py` xóa `.ransom_key` cục bộ → nạn nhân mất khả năng tự giải mã
 
 ---
 
 ## An toàn sandbox
 
-- `RansomwareSimulator._is_inside_sandbox()` dùng `os.path.realpath()` — không thể thoát ra ngoài thư mục sandbox.
-- Khi chạy dưới dạng exe: sandbox = thư mục chứa exe (không ảnh hưởng `shop_data/` hay dữ liệu hệ thống).
-- Extension bỏ qua khi mã hóa: `.exe .py .sh .bat .so .dll` — exe không tự mã hóa chính nó.
-- Safety marker `RANSOMWARE_SIMULATOR_DEMO_SAFE` nhúng trong source để scanner tự nhận diện.
+- `os.path.realpath()` — ransomware engine không thể thoát ra ngoài sandbox
+- Khi chạy dưới dạng exe: sandbox = thư mục chứa exe (không ảnh hưởng `shop_data/`)
+- Extension bỏ qua: `.exe .py .sh .bat .so .dll` — exe không tự mã hóa chính nó
+- Safety marker `RANSOMWARE_SIMULATOR_DEMO_SAFE` nhúng trong source để scanner nhận diện
 
 ---
 
 ## Landing page
 
 ```bash
-cd landing-web
-npm install
-npm run dev      # dev server tại localhost:5173
-npm run build    # build production → dist/
+cd landing-web && npm install
+npm run dev      # localhost:5173
+npm run build    # → dist/
 ```
-
-File exe download: `/ProManagerSuite.exe` — phục vụ từ `landing-web/public/ProManagerSuite.exe`.
 
 ---
 
 ## Lưu ý an toàn
 
-- Chỉ dùng cho mục đích học tập và trình diễn phòng thủ.
+- Chỉ dùng cho mục đích học tập và trình diễn.
 - Không đưa dữ liệu thật vào `shop_data/`.
 - Không sửa simulator để quét ngoài sandbox.
-- Sau mỗi demo, chạy `python3 manager-agent/ransomware_simulator.py decrypt` để reset.
+- Sau mỗi demo, chạy script reset ở **Bước 7**.

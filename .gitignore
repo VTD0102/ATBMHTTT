@@ -6,7 +6,9 @@ website/
 quarantine/
 backup/
 logs/
-
+.claude/
+./*.log
+backups/
 # Optional: Shell script temporary files
 *.tmp
 *.log

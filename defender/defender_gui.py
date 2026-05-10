@@ -64,7 +64,8 @@ _BAD_PROCS  = ['ProManagerSuite', 'fake_manager', 'fake_ransom', 'ransomware_sim
 _BAD_NAMES  = {'promanagersuite', 'fake_manager', 'fakeinstaller', 'ransomware'}
 _BAD_STR    = [b'RANSOMWARE_SIMULATOR_DEMO_SAFE', b'fernet.encrypt', b'Fernet.generate_key']
 _SKIP_SCAN  = {'.encrypted', '.tar', '.gz', '.zip', '.db'}
-_VICTIM_DIR = os.path.join(_root, 'shop_data')
+_VICTIM_DIR      = os.path.join(_root, 'shop_data')
+_RANSOMWARE_FLAG = os.path.join(_root, 'RANSOMWARE_DETECTED.flag')
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -233,6 +234,17 @@ class DefenderApp:
 
     # ── Layout ──────────────────────────────────────────────────────
     def _build_layout(self):
+        # Status bar phải pack TRƯỚC các widget side='left'
+        # để Tkinter cavity manager tính đúng không gian còn lại
+        sb_bar = tk.Frame(self.root, bg=SB2, height=38)
+        sb_bar.pack(side='bottom', fill='x')
+        self._status_var = tk.StringVar(value='Sẵn sàng')
+        tk.Label(sb_bar, textvariable=self._status_var, font=('Segoe UI', 15),
+                 bg=SB2, fg='#94a3b8', padx=14).pack(side='left')
+        self._clock_var = tk.StringVar()
+        tk.Label(sb_bar, textvariable=self._clock_var, font=('Segoe UI', 15),
+                 bg=SB2, fg='#64748b', padx=14).pack(side='right')
+
         sb = tk.Frame(self.root, bg=SIDEBAR, width=290)
         sb.pack(side='left', fill='y')
         sb.pack_propagate(False)
@@ -271,15 +283,6 @@ class DefenderApp:
         tk.Frame(self.root, bg=BORDER, width=1).pack(side='left', fill='y')
         self._content = tk.Frame(self.root, bg=BG)
         self._content.pack(side='left', fill='both', expand=True)
-
-        sb_bar = tk.Frame(self.root, bg=SB2, height=38)
-        sb_bar.pack(side='bottom', fill='x')
-        self._status_var = tk.StringVar(value='Sẵn sàng')
-        tk.Label(sb_bar, textvariable=self._status_var, font=('Segoe UI', 15),
-                 bg=SB2, fg='#94a3b8', padx=14).pack(side='left')
-        self._clock_var = tk.StringVar()
-        tk.Label(sb_bar, textvariable=self._clock_var, font=('Segoe UI', 15),
-                 bg=SB2, fg='#64748b', padx=14).pack(side='right')
 
     def _clear_content(self):
         for w in self._content.winfo_children():
@@ -484,6 +487,8 @@ class DefenderApp:
             if key not in self._phase_labels:
                 continue
             box, lbl = self._phase_labels[key]
+            if not box.winfo_exists():
+                continue
             status = self._phase[key]
             fg  = GRN if status == 'done' else AMB if status == 'active' else MUTED
             bg2 = GRN_BG if status == 'done' else AMB_BG if status == 'active' else '#f8fafc'
@@ -514,7 +519,9 @@ class DefenderApp:
             self._dash_enc_var.set(str(enc))
             self._dash_total_var.set(str(total))
             self._dash_proc_var.set(', '.join(procs) if procs else 'Không có')
-            if enc > 0 or procs:
+            if os.path.exists(_RANSOMWARE_FLAG):
+                self._dash_status_var.set('🔴 RANSOMWARE ĐÃ XÂM NHẬP')
+            elif self._under_attack and (enc > 0 or procs):
                 self._dash_status_var.set('⚠  ĐANG BỊ TẤN CÔNG')
             else:
                 self._dash_status_var.set('Đang bảo vệ ✓')
@@ -539,12 +546,14 @@ class DefenderApp:
         self._det_enc_var  = tk.StringVar()
         self._det_proc_var = tk.StringVar()
         self._det_key_var  = tk.StringVar()
+        self._det_flag_var = tk.StringVar()
         self._refresh_detect_indicators()
 
         for var, label, fg in [
             (self._det_enc_var,  'File .encrypted phát hiện', RED),
             (self._det_proc_var, 'Tiến trình độc hại', RED),
             (self._det_key_var,  'Ransom key (attacker)', AMB),
+            (self._det_flag_var, 'Ransomware flag', RED),
         ]:
             box = tk.Frame(irow, bg=RED_BG if fg == RED else AMB_BG, padx=14, pady=10)
             box.pack(side='left', fill='both', expand=True, padx=(0, 8))
@@ -625,10 +634,13 @@ class DefenderApp:
         enc   = _count_encrypted(_VICTIM_DIR)
         procs = _running_bad_procs()
         key   = os.path.exists(os.path.join(_VICTIM_DIR, '.ransom_key'))
+        flag  = os.path.exists(_RANSOMWARE_FLAG)
         if hasattr(self, '_det_enc_var'):
             self._det_enc_var.set(f'{enc} file')
             self._det_proc_var.set(', '.join(procs) if procs else 'Không có')
             self._det_key_var.set('⚠ Tìm thấy' if key else 'Không có')
+        if hasattr(self, '_det_flag_var'):
+            self._det_flag_var.set('🔴 ĐÃ XÁC NHẬN' if flag else 'Chưa có')
 
     def _pick_dir(self, var: tk.StringVar):
         d = filedialog.askdirectory(initialdir=var.get())
@@ -1076,6 +1088,9 @@ class DefenderApp:
         try:
             mgr = BackupManager(self._src_dir.get(), self._bak_dir.get())
             mgr.restore(backup_path, self._src_dir.get())
+            if os.path.exists(_RANSOMWARE_FLAG):
+                os.remove(_RANSOMWARE_FLAG)
+            self._under_attack = False
             self._log(f'[OK] Restore thành công từ backup: {os.path.basename(backup_path)}')
             self._record_action(f'Restore từ backup: {os.path.basename(backup_path)}', 'defense')
             self._emit_event(f'✓ Dữ liệu đã được khôi phục từ backup', 'defense')
@@ -1399,6 +1414,15 @@ class DefenderApp:
             enc = _count_encrypted(_VICTIM_DIR)
             self._emit_event(f'   Kết quả: {enc} file đã bị mã hóa tính đến thời điểm này', 'attack')
             self._emit_event('   → Xác nhận: ĐÂY LÀ TẤN CÔNG RANSOMWARE', 'attack')
+            import json as _json
+            with open(_RANSOMWARE_FLAG, 'w') as _fh:
+                _json.dump({
+                    'detected_at':     datetime.now().isoformat(),
+                    'files_encrypted': enc,
+                    'attack_type':     'ransomware',
+                    'status':          'active',
+                }, _fh, indent=2)
+            self._emit_event('   → Đã ghi RANSOMWARE_DETECTED.flag ✓', 'defense')
             self._advance_phase('identification')
             self.root.after(STEP_DELAY, step2)
 
@@ -1437,7 +1461,7 @@ class DefenderApp:
             self._emit_event('', 'info')
             self._emit_event('💾 [BƯỚC 3/4] Backup khẩn cấp dữ liệu còn lại', 'defense')
             self._emit_event('   Mục đích: Lưu toàn bộ file CHƯA bị mã hóa vào backup', 'info')
-            self._emit_event('   Lưu ý: File ĐÃ bị mã hóa vẫn sẽ có trong backup này', 'warning')
+            self._emit_event('   Lưu ý: Chỉ backup file sạch, bỏ qua file .encrypted', 'info')
             self._emit_event('   → Đang tạo archive tar.gz...', 'info')
             self._set_phase_active('emergency_bak')
             self._log('[BACKUP] Bắt đầu backup khẩn cấp...')
@@ -1449,10 +1473,12 @@ class DefenderApp:
                 os.makedirs(bak, exist_ok=True)
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 archive_name = f'backup_emergency_{timestamp}.tar.gz'
-                archive_path = os.path.join(bak, archive_name)
-                import tarfile
-                with tarfile.open(archive_path, 'w:gz') as tar:
-                    tar.add(src, arcname=os.path.basename(src))
+                mgr_em = BackupManager(src, bak)
+                archive_path = mgr_em.backup()
+                # Rename to emergency naming convention
+                new_path = os.path.join(bak, archive_name)
+                os.rename(archive_path, new_path)
+                archive_path = new_path
                 self._emergency_backup_path = archive_path
                 size_kb = os.path.getsize(archive_path) / 1024
                 self._log(f'[BACKUP] Backup khẩn cấp: {archive_name} ({size_kb:.0f} KB)')
@@ -1566,6 +1592,9 @@ class DefenderApp:
             def _do_auto_restore():
                 try:
                     mgr.restore(best, self._src_dir.get())
+                    if os.path.exists(_RANSOMWARE_FLAG):
+                        os.remove(_RANSOMWARE_FLAG)
+                    self._under_attack = False
                     self._log(f'[OK] Auto-restore thành công: {best_name}')
                     self._record_action(f'Auto-restore thành công: {best_name}', 'defense')
                     self.root.after(0, lambda: self._emit_event('   ✓ KHÔI PHỤC HOÀN TẤT', 'defense'))
