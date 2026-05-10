@@ -6,9 +6,10 @@ from typing import List
 
 
 class BackupManager:
-    def __init__(self, source_dir: str, backup_dir: str):
+    def __init__(self, source_dir: str, backup_dir: str, max_backups: int = 0):
         self.source_dir = source_dir
         self.backup_dir = backup_dir
+        self.max_backups = max_backups  # 0 = unlimited
         os.makedirs(backup_dir, exist_ok=True)
 
     def backup(self) -> str:
@@ -16,7 +17,6 @@ class BackupManager:
         archive_name = f"backup_{timestamp}.tar.gz"
         archive_path = os.path.join(self.backup_dir, archive_name)
 
-        # Guarantee uniqueness when multiple backups happen within the same second
         counter = 1
         while os.path.exists(archive_path):
             archive_name = f"backup_{timestamp}_{counter}.tar.gz"
@@ -28,7 +28,20 @@ class BackupManager:
 
         size_kb = os.path.getsize(archive_path) / 1024
         print(f"[BACKUP] Created: {archive_name} ({size_kb:.1f} KB)")
+
+        if self.max_backups > 0:
+            self._prune()
+
         return archive_path
+
+    def _prune(self):
+        backups = self.list_backups()
+        for old in backups[:-self.max_backups]:
+            try:
+                os.remove(old)
+                print(f"[BACKUP] Pruned: {os.path.basename(old)}")
+            except OSError:
+                pass
 
     def restore(self, backup_path: str, restore_dir: str):
         os.makedirs(restore_dir, exist_ok=True)

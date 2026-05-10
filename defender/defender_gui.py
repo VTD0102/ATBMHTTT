@@ -3,6 +3,7 @@ import sys
 import math
 import time
 import threading
+import re
 import subprocess
 from datetime import datetime, timedelta
 
@@ -54,7 +55,8 @@ IR_PHASES = [
     ('containment',    '3. Cô lập',             '🔒'),
     ('emergency_bak',  '4. Backup khẩn cấp',    '💾'),
     ('assessment',     '5. Đánh giá thiệt hại', '📋'),
-    ('lessons',        '6. Rút kinh nghiệm',    '📊'),
+    ('recovery',       '6. Khôi phục',          '♻'),
+    ('lessons',        '7. Rút kinh nghiệm',    '📊'),
 ]
 
 # ── Suspicious patterns ──────────────────────────────────────────────
@@ -194,9 +196,10 @@ class DefenderApp:
         self._scan_results     = []
         self._scan_count       = 0
         self._threat_count     = 0
-        self._under_attack     = False
-        self._incident_actions = []
-        self._attack_start_enc = 0   # encrypted count when attack began
+        self._under_attack        = False
+        self._incident_actions    : list = []
+        self._attack_start_enc    = 0   # encrypted count when attack began
+        self._attack_detected_at  = None
         self._emergency_backup_path = None
 
         # Live attack events: list of (timestamp_str, message, event_type)
@@ -206,11 +209,21 @@ class DefenderApp:
         # Backup vars
         self._backup_on  = tk.BooleanVar(value=True)
         self._interval_h = tk.IntVar(value=6)
+        self._max_backups = tk.IntVar(value=5)
         self._src_dir    = tk.StringVar(value=_VICTIM_DIR)
         self._bak_dir    = tk.StringVar(value=os.path.join(_root, 'backups'))
         self._scan_dir   = tk.StringVar(value=_root)
         self._next_backup = None
         self._bk_job      = None
+        self._last_bk_time = None
+        self._last_bk_name = ''
+        try:
+            _existing = BackupManager(self._src_dir.get(), self._bak_dir.get()).list_backups()
+            if _existing:
+                self._last_bk_name = os.path.basename(_existing[-1])
+                self._last_bk_time = datetime.fromtimestamp(os.path.getmtime(_existing[-1]))
+        except Exception:
+            pass
 
         self._build_layout()
         self._show('dashboard')
@@ -237,6 +250,7 @@ class DefenderApp:
             ('🔒', 'Cô lập & Tiêu diệt', 'contain'),
             ('💾', 'Backup & Khôi phục',  'backup'),
             ('📊', 'Báo cáo sự cố',       'report'),
+            ('⏱', 'Timeline sự cố',      'timeline'),
             ('📋', 'Log',                  'log'),
         ]
         for icon, label, key in nav_items:
@@ -374,7 +388,7 @@ class DefenderApp:
 
         # Left: Live Attack Feed
         left = tk.Frame(cols_frame, bg=BORDER, padx=1, pady=1)
-        left.pack(side='left', fill='both', expand=True, padx=(0, 8))
+        left.pack(side='left', fill='both', expand=True)
         left_inner = tk.Frame(left, bg='#0d1117', padx=12, pady=10)
         left_inner.pack(fill='both', expand=True)
 
@@ -396,67 +410,6 @@ class DefenderApp:
         self._live_feed.configure(yscrollcommand=feed_vsb.set)
         self._live_feed.pack(side='left', fill='both', expand=True)
         feed_vsb.pack(side='right', fill='y')
-
-        # Right: Defense Steps
-        right = tk.Frame(cols_frame, bg=BORDER, padx=1, pady=1, width=360)
-        right.pack(side='left', fill='y')
-        right.pack_propagate(False)
-        right_inner = tk.Frame(right, bg=CARD, padx=14, pady=10)
-        right_inner.pack(fill='both', expand=True)
-
-        tk.Label(right_inner, text='QUÁ TRÌNH PHÒNG THỦ',
-                 font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 8))
-
-        defense_steps = [
-            ('preparation',    '🛡', 'Chuẩn bị & Backup định kỳ'),
-            ('identification', '🔍', 'Phát hiện mã hóa bất thường'),
-            ('containment',    '🔒', 'Dừng tiến trình độc hại'),
-            ('emergency_bak',  '💾', 'Backup khẩn cấp dữ liệu còn lại'),
-            ('assessment',     '📋', 'Đánh giá mức độ thiệt hại'),
-        ]
-        self._defense_step_labels = {}
-        for key, icon, desc in defense_steps:
-            row = tk.Frame(right_inner, bg=CARD)
-            row.pack(fill='x', pady=3)
-            status = self._phase.get(key, 'pending')
-            fg = GRN if status == 'done' else AMB if status == 'active' else MUTED
-            mark = '✓' if status == 'done' else '●' if status == 'active' else '○'
-            dot = tk.Label(row, text=mark, font=('Segoe UI', 19, 'bold'), bg=CARD, fg=fg)
-            dot.pack(side='left')
-            lbl = tk.Label(row, text=f' {icon} {desc}',
-                           font=('Segoe UI', 15), bg=CARD, fg=fg, anchor='w', wraplength=280)
-            lbl.pack(side='left', fill='x', expand=True)
-            self._defense_step_labels[key] = (dot, lbl)
-
-        tk.Frame(right_inner, bg=BORDER, height=1).pack(fill='x', pady=8)
-
-        # Damage summary
-        tk.Label(right_inner, text='TÓM TẮT THIỆT HẠI',
-                 font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 4))
-        self._damage_enc_var  = tk.StringVar(value='0 file bị mã hóa')
-        self._damage_safe_var = tk.StringVar(value='—')
-        tk.Label(right_inner, textvariable=self._damage_enc_var,
-                 font=('Segoe UI', 16, 'bold'), bg=CARD, fg=RED).pack(anchor='w')
-        tk.Label(right_inner, textvariable=self._damage_safe_var,
-                 font=('Segoe UI', 16), bg=CARD, fg=GRN).pack(anchor='w')
-        self._damage_msg_var = tk.StringVar(value='')
-        tk.Label(right_inner, textvariable=self._damage_msg_var,
-                 font=('Segoe UI', 14), bg=CARD, fg=AMB_FG, wraplength=300, justify='left').pack(
-                 anchor='w', pady=(4, 0))
-
-        tk.Frame(right_inner, bg=BORDER, height=1).pack(fill='x', pady=8)
-
-        # Quick actions
-        tk.Label(right_inner, text='HÀNH ĐỘNG NHANH',
-                 font=('Segoe UI', 15, 'bold'), bg=CARD, fg=MUTED).pack(anchor='w', pady=(0, 6))
-        for txt, cmd, bg in [
-            ('🔍  Quét ngay',    lambda: self._show('detect'),  ACCENT),
-            ('🔒  Cô lập ngay', lambda: self._show('contain'), RED),
-            ('💾  Backup ngay', lambda: self._show('backup'),  GRN),
-        ]:
-            tk.Button(right_inner, text=txt, font=SFS, bg=bg, fg='#fff',
-                      relief='flat', bd=0, padx=10, pady=6, cursor='hand2',
-                      command=cmd).pack(fill='x', pady=1)
 
         # Refresh live feed
         self._refresh_live_feed()
@@ -721,7 +674,7 @@ class DefenderApp:
         self._scan_status.config(text='Hoàn tất', fg=GRN)
         lvl = 'CẢNH BÁO' if results else 'OK'
         self._log(f'[{lvl}] Quét xong — {len(results)} mối đe doạ / {total} file')
-        self._incident_actions.append(f'Quét thủ công: {len(results)} mối đe doạ trong {total} file')
+        self._record_action(f'Quét thủ công: {len(results)} mối đe doạ trong {total} file', 'info')
         if results:
             self._advance_phase('identification')
             crit = [r for r in results if r.get('severity') == 'CRITICAL']
@@ -825,7 +778,7 @@ class DefenderApp:
         self._maint_var.set('🔴  Đang bảo trì — Giao dịch đã ngưng')
         self._maint_lbl.config(fg=RED)
         self._log('[OK] Bật Maintenance Mode — giao dịch đã ngưng')
-        self._incident_actions.append('Bật Maintenance Mode')
+        self._record_action('Bật Maintenance Mode', 'defense')
 
     def _kill_bad_procs(self):
         killed = []
@@ -839,7 +792,7 @@ class DefenderApp:
         if killed:
             msg = f'Đã dừng: {", ".join(killed)}'
             self._log(f'[OK] {msg}')
-            self._incident_actions.append(f'Dừng tiến trình: {", ".join(killed)}')
+            self._record_action(f'Dừng tiến trình: {", ".join(killed)}', 'defense')
             self._advance_phase('containment')
             messagebox.showinfo('Thành công', msg)
         else:
@@ -860,7 +813,7 @@ class DefenderApp:
         import shutil
         shutil.move(exe, dest)
         self._log(f'[OK] Quarantine: ProManagerSuite.exe → {os.path.basename(dest)}')
-        self._incident_actions.append('Quarantine ProManagerSuite.exe')
+        self._record_action('Quarantine ProManagerSuite.exe', 'defense')
         self._quar_status.config(text=f'✓  Đã quarantine: {os.path.basename(dest)}', fg=GRN)
 
     def _open_quarantine_dir(self):
@@ -876,7 +829,7 @@ class DefenderApp:
         with open(flag, 'w') as fh:
             fh.write(f'Network isolated at {datetime.now()}\n')
         self._log('[OK] Mô phỏng ngắt mạng — NETWORK_ISOLATED.flag đã tạo')
-        self._incident_actions.append('Mô phỏng cô lập mạng')
+        self._record_action('Mô phỏng cô lập mạng', 'defense')
         messagebox.showinfo('Cô lập mạng',
                             '✓  Đã tạo NETWORK_ISOLATED.flag\n\n'
                             'Trong thực tế: rút cáp mạng hoặc\nngắt vSwitch của máy chủ bị nhiễm.')
@@ -940,6 +893,16 @@ class DefenderApp:
         tk.Checkbutton(srow, text='Tự động', variable=self._backup_on,
                         font=SF, bg=CARD, activebackground=CARD, selectcolor=ACC_BG,
                         command=self._reschedule).pack(side='left', padx=(10, 0))
+
+        mrow = tk.Frame(bc, bg=CARD)
+        mrow.pack(fill='x', pady=(4, 0))
+        tk.Label(mrow, text='Giữ lại tối đa:', font=SFB, bg=CARD, fg=TEXT, width=18, anchor='w').pack(side='left')
+        tk.Spinbox(mrow, from_=1, to=20, textvariable=self._max_backups, font=SF,
+                   width=4, bg='#f8faff', fg=TEXT, relief='flat',
+                   highlightthickness=1, highlightbackground=BORDER,
+                   highlightcolor=ACCENT).pack(side='left', padx=(0, 6), ipady=4)
+        tk.Label(mrow, text='bản backup gần nhất  (áp dụng cho lần backup tiếp theo)',
+                 font=SFS, bg=CARD, fg=MUTED).pack(side='left')
 
         brow = tk.Frame(bc, bg=CARD)
         brow.pack(fill='x', pady=(10, 0))
@@ -1057,7 +1020,7 @@ class DefenderApp:
                 self._log(f'[CẢNH BÁO] Giải mã một phần — {msg} (key sai hoặc file hỏng)')
             else:
                 self._log(f'[OK] Giải mã thành công — {msg}')
-            self._incident_actions.append(f'Giải mã bằng key attacker: {msg}')
+            self._record_action(f'Giải mã bằng key attacker: {msg}', 'warning')
             self.root.after(0, lambda: self._dec_status.config(
                 text=f'{"✓" if errors == 0 else "⚠"}  {msg}',
                 fg=GRN if errors == 0 else AMB))
@@ -1114,7 +1077,7 @@ class DefenderApp:
             mgr = BackupManager(self._src_dir.get(), self._bak_dir.get())
             mgr.restore(backup_path, self._src_dir.get())
             self._log(f'[OK] Restore thành công từ backup: {os.path.basename(backup_path)}')
-            self._incident_actions.append(f'Restore từ backup: {os.path.basename(backup_path)}')
+            self._record_action(f'Restore từ backup: {os.path.basename(backup_path)}', 'defense')
             self._emit_event(f'✓ Dữ liệu đã được khôi phục từ backup', 'defense')
             messagebox.showinfo('Khôi phục thành công',
                                 f'✓  Dữ liệu đã được khôi phục từ:\n{os.path.basename(backup_path)}')
@@ -1207,7 +1170,7 @@ class DefenderApp:
         tk.Label(ac, text='CÁC HÀNH ĐỘNG ĐÃ THỰC HIỆN', font=('Segoe UI', 16, 'bold'),
                  bg=CARD, fg=TEXT).pack(anchor='w', pady=(0, 8))
         if self._incident_actions:
-            for i, act in enumerate(self._incident_actions, 1):
+            for i, (ts, act, cat) in enumerate(self._incident_actions, 1):
                 tk.Label(ac, text=f'  {i}. {act}', font=SF, bg=CARD, fg=TEXT, anchor='w').pack(fill='x')
         else:
             tk.Label(ac, text='  Chưa có hành động nào được ghi lại.',
@@ -1265,8 +1228,8 @@ class DefenderApp:
             mark = '[DONE]' if status == 'done' else '[ACTIVE]' if status == 'active' else '[PENDING]'
             lines.append(f'  {mark} {icon} {label}')
         lines += ['', 'HÀNH ĐỘNG ĐÃ THỰC HIỆN:']
-        for i, act in enumerate(self._incident_actions, 1):
-            lines.append(f'  {i}. {act}')
+        for i, (ts, act, cat) in enumerate(self._incident_actions, 1):
+            lines.append(f'  {i}. [{ts.strftime("%H:%M:%S")}] {act}')
         lines += ['', 'EVENT LOG:']
         lines.extend(f'  {l}' for l in self._log_lines)
         with open(path, 'w', encoding='utf-8') as fh:
@@ -1313,6 +1276,60 @@ class DefenderApp:
         self._log_lines.clear()
         self._redraw_log()
 
+    # ── 7. TIMELINE ──────────────────────────────────────────────────
+    def _panel_timeline(self):
+        self._topbar('Timeline sự cố',
+                     'Dòng thời gian ứng phó — T+Xs kể từ khi phát hiện tấn công')
+        body = tk.Frame(self._content, bg=BG, padx=22, pady=14)
+        body.pack(fill='both', expand=True)
+        _sw = tk.Frame(body, bg=BG)
+        _sw.pack(fill='both', expand=True)
+        _sw.grid_rowconfigure(0, weight=1)
+        _sw.grid_columnconfigure(0, weight=1)
+        sc = tk.Canvas(_sw, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(_sw, orient='vertical', command=sc.yview)
+        sc.configure(yscrollcommand=vsb.set)
+        vsb.grid(row=0, column=1, sticky='ns')
+        sc.grid(row=0, column=0, sticky='nsew')
+        self._timeline_body = tk.Frame(sc, bg=BG, padx=8, pady=8)
+        win = sc.create_window((0, 0), window=self._timeline_body, anchor='nw')
+        self._timeline_body.bind('<Configure>',
+            lambda e: sc.configure(scrollregion=sc.bbox('all')))
+        sc.bind('<Configure>', lambda e: sc.itemconfig(win, width=e.width))
+        self._redraw_timeline()
+
+    def _redraw_timeline(self):
+        if not hasattr(self, '_timeline_body') or not self._timeline_body.winfo_exists():
+            return
+        for w in self._timeline_body.winfo_children():
+            w.destroy()
+
+        _cat_color = {'attack': RED, 'defense': GRN, 'warning': AMB, 'info': MUTED}
+
+        if not self._incident_actions:
+            tk.Label(self._timeline_body,
+                     text='Chưa có sự kiện. Timeline tự cập nhật khi tấn công xảy ra.',
+                     font=SF, bg=BG, fg=MUTED).pack(anchor='w', pady=20)
+            return
+
+        t0 = self._attack_detected_at
+        for ts, text, cat in self._incident_actions:
+            row = tk.Frame(self._timeline_body, bg=BG)
+            row.pack(fill='x', pady=2)
+
+            if t0 is not None:
+                delta = int((ts - t0).total_seconds())
+                badge = f'T{"+" if delta >= 0 else ""}{delta}s'
+            else:
+                badge = ts.strftime('%H:%M:%S')
+
+            tk.Label(row, text=badge, font=('Courier New', 14),
+                     bg=BG, fg=MUTED, width=10, anchor='e').pack(side='left')
+            tk.Label(row, text='●', font=SFS,
+                     bg=BG, fg=_cat_color.get(cat, MUTED), padx=6).pack(side='left')
+            tk.Label(row, text=text, font=SF, bg=BG, fg=TEXT,
+                     anchor='w', wraplength=900).pack(side='left', fill='x', expand=True)
+
     # ── Background watcher (HIDS — per-file tracking) ────────────────
     def _watch_loop(self):
         # Build initial state
@@ -1345,6 +1362,7 @@ class DefenderApp:
                 self._log(f'[NGUY HIỂM] File bị mã hóa: {fname}')
 
             if new_files and not self._under_attack:
+                self._attack_detected_at = datetime.now()
                 self._under_attack = True
                 self._attack_start_enc = len(known_encrypted)
                 self.root.after(0, self._auto_respond)
@@ -1364,7 +1382,7 @@ class DefenderApp:
     def _auto_respond(self):
         self._emit_event('━━━ HIDS PHÁT HIỆN TẤN CÔNG RANSOMWARE ━━━', 'warning')
         self._log('[NGUY HIỂM] HIDS kích hoạt ứng phó tự động!')
-        self._incident_actions.append('HIDS phát hiện ransomware — kích hoạt auto-respond')
+        self._record_action('HIDS phát hiện ransomware — kích hoạt auto-respond', 'attack')
         self._set_phase_active('identification')
 
         STEP_DELAY = 10000  # ms giữa mỗi bước — điều chỉnh ở đây nếu muốn nhanh/chậm hơn
@@ -1400,7 +1418,7 @@ class DefenderApp:
                 for k in killed:
                     self._emit_event(f'   → pkill {k}: THÀNH CÔNG ✓', 'defense')
                 self._log(f'[OK] Auto-kill tiến trình: {", ".join(killed)}')
-                self._incident_actions.append(f'Auto-kill: {", ".join(killed)}')
+                self._record_action(f'Auto-kill: {", ".join(killed)}', 'defense')
             else:
                 self._emit_event('   → Không tìm thấy tiến trình đang chạy', 'info')
                 self._emit_event('   (Tiến trình có thể đã tự thoát sau khi mã hóa xong)', 'info')
@@ -1412,7 +1430,7 @@ class DefenderApp:
                 fh.write(f'Auto maintenance mode at {datetime.now()}\n')
             self._emit_event('   → Bật Maintenance Mode: giao dịch mới đã bị dừng ✓', 'defense')
             self._log('[OK] Auto Maintenance Mode')
-            self._incident_actions.append('Auto Maintenance Mode')
+            self._record_action('Auto Maintenance Mode', 'defense')
             self.root.after(STEP_DELAY, step3)
 
         def step3():
@@ -1438,7 +1456,7 @@ class DefenderApp:
                 self._emergency_backup_path = archive_path
                 size_kb = os.path.getsize(archive_path) / 1024
                 self._log(f'[BACKUP] Backup khẩn cấp: {archive_name} ({size_kb:.0f} KB)')
-                self._incident_actions.append(f'Backup khẩn cấp: {archive_name}')
+                self._record_action(f'Backup khẩn cấp: {archive_name}', 'defense')
                 self.root.after(0, lambda: self._emit_event(
                     f'   → Backup xong: {archive_name} ({size_kb:.0f} KB) ✓', 'defense'))
                 self._advance_phase('emergency_bak')
@@ -1474,21 +1492,96 @@ class DefenderApp:
             self._emit_event('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'defense')
             self._advance_phase('assessment')
             self._log(f'[OK] Auto-respond hoàn tất — {enc} file bị mã hóa, {safe} file an toàn')
-            self._incident_actions.append(f'Đánh giá: {enc} file bị mã hóa, {safe} file an toàn')
+            self._record_action(f'Đánh giá: {enc} file bị mã hóa, {safe} file an toàn', 'warning')
             self.root.after(0, self._update_defense_steps)
-            self.root.after(500, lambda: messagebox.showwarning(
-                '🔴  CẢNH BÁO — Phát hiện Ransomware',
-                f'HIDS đã phát hiện và ứng phó tự động!\n\n'
-                f'📁  File bị mã hóa:    {enc}\n'
-                f'📁  File an toàn:       {safe}\n\n'
-                f'Đã thực hiện:\n'
-                f'  ✓ Xác nhận tấn công ransomware\n'
-                f'  ✓ Dừng tiến trình độc hại\n'
-                f'  ✓ Bật Maintenance Mode\n'
-                f'  ✓ Backup khẩn cấp dữ liệu\n\n'
-                f'→ Vào "Backup & Khôi phục" để restore từ backup.\n'
-                f'→ Xem "Báo cáo sự cố" để xem chi tiết.'
-            ))
+
+            def _show_warn_then_step5():
+                messagebox.showwarning(
+                    '🔴  CẢNH BÁO — Phát hiện Ransomware',
+                    f'HIDS đã phát hiện và ứng phó tự động!\n\n'
+                    f'📁  File bị mã hóa:    {enc}\n'
+                    f'📁  File an toàn:       {safe}\n\n'
+                    f'Đã thực hiện:\n'
+                    f'  ✓ Xác nhận tấn công ransomware\n'
+                    f'  ✓ Dừng tiến trình độc hại\n'
+                    f'  ✓ Bật Maintenance Mode\n'
+                    f'  ✓ Backup khẩn cấp dữ liệu\n\n'
+                    f'→ Tiếp theo: tự động tìm backup sạch và khôi phục...'
+                )
+                self.root.after(2000, step5)
+
+            self.root.after(500, _show_warn_then_step5)
+
+        def step5():
+            self._emit_event('', 'info')
+            self._emit_event('♻ [BƯỚC 5/5] Tự động khôi phục dữ liệu', 'defense')
+            self._set_phase_active('recovery')
+
+            attack_time = self._get_attack_time()
+            if attack_time is None:
+                self._emit_event('   ⚠ Không xác định được thời điểm tấn công — bỏ qua auto-restore', 'warning')
+                self._record_action('Auto-restore bỏ qua: không xác định attack_time', 'warning')
+                self._advance_phase('recovery')
+                return
+
+            self._emit_event(f'   Thời điểm tấn công: {attack_time.strftime("%H:%M:%S %d/%m/%Y")}', 'info')
+
+            mgr  = BackupManager(self._src_dir.get(), self._bak_dir.get())
+            best = None
+            for bk in mgr.list_backups():
+                bk_time = self._parse_backup_time(bk)
+                if bk_time and bk_time < attack_time:
+                    best = bk
+
+            if best is None:
+                self._emit_event('   ⚠ Không có backup sạch nào trước thời điểm tấn công', 'warning')
+                self._emit_event('   → Vui lòng restore thủ công trong "Backup & Khôi phục"', 'info')
+                self._record_action('Auto-restore bỏ qua: không có backup trước tấn công', 'warning')
+                self._advance_phase('recovery')
+                return
+
+            bk_time   = self._parse_backup_time(best)
+            best_name = os.path.basename(best)
+            self._emit_event(f'   Backup được chọn: {best_name}', 'info')
+            self._emit_event(f'   Tạo lúc: {bk_time.strftime("%H:%M:%S %d/%m/%Y")}', 'info')
+            self._emit_event('   Đây là backup sạch cuối cùng trước khi bị tấn công.', 'defense')
+
+            if not messagebox.askyesno(
+                '♻ Tự động khôi phục dữ liệu',
+                f'Backup sạch trước tấn công:\n\n'
+                f'  📦  {best_name}\n'
+                f'  🕐  {bk_time.strftime("%H:%M:%S %d/%m/%Y")}\n\n'
+                f'Khôi phục sẽ ghi đè dữ liệu hiện tại trong:\n'
+                f'  {self._src_dir.get()}\n\n'
+                f'Tiếp tục khôi phục?'
+            ):
+                self._emit_event('   → Người dùng từ chối khôi phục tự động', 'warning')
+                self._record_action('Auto-restore bị từ chối bởi người dùng', 'warning')
+                self._advance_phase('recovery')
+                return
+
+            self._emit_event('   → Đang khôi phục...', 'info')
+            self._record_action(f'Bắt đầu auto-restore: {best_name}', 'defense')
+
+            def _do_auto_restore():
+                try:
+                    mgr.restore(best, self._src_dir.get())
+                    self._log(f'[OK] Auto-restore thành công: {best_name}')
+                    self._record_action(f'Auto-restore thành công: {best_name}', 'defense')
+                    self.root.after(0, lambda: self._emit_event('   ✓ KHÔI PHỤC HOÀN TẤT', 'defense'))
+                    self._advance_phase('recovery')
+                    self.root.after(0, self._try_refresh_backup_list)
+                    self.root.after(0, lambda: messagebox.showinfo(
+                        '✓ Khôi phục thành công',
+                        f'Dữ liệu đã được khôi phục từ:\n{best_name}'))
+                except Exception as e:
+                    self._log(f'[LỖI] Auto-restore thất bại: {e}')
+                    self._record_action(f'Auto-restore thất bại: {e}', 'attack')
+                    self.root.after(0, lambda: self._emit_event(
+                        f'   ✗ Restore thất bại: {e}', 'attack'))
+                    self._advance_phase('recovery')
+
+            threading.Thread(target=_do_auto_restore, daemon=True).start()
 
         self.root.after(3000, step1)  # 3s pause — cho người trình bày giải thích banner đỏ trước
 
@@ -1500,11 +1593,13 @@ class DefenderApp:
             return
         try:
             os.makedirs(bak, exist_ok=True)
-            mgr  = BackupManager(src, bak)
+            mgr  = BackupManager(src, bak, max_backups=self._max_backups.get())
             path = mgr.backup()
             size = os.path.getsize(path) / 1024
+            self._last_bk_time = datetime.now()
+            self._last_bk_name = os.path.basename(path)
             self._log(f'[BACKUP] {os.path.basename(path)} ({size:.0f} KB)')
-            self._incident_actions.append(f'Backup: {os.path.basename(path)}')
+            self._record_action(f'Backup: {os.path.basename(path)}', 'defense')
             self._emit_event(f'💾 Backup thành công: {os.path.basename(path)}', 'defense')
             self.root.after(0, self._try_refresh_backup_list)
             if hasattr(self, '_bk_status_lbl'):
@@ -1546,7 +1641,41 @@ class DefenderApp:
         m, s   = divmod(rem, 60)
         return f'Backup tiếp: {h:02d}:{m:02d}:{s:02d}'
 
+    def _last_backup_display(self) -> str:
+        if not self._last_bk_time:
+            return 'Chưa có backup'
+        return f'{self._last_bk_time.strftime("%H:%M %d/%m")} — {self._last_bk_name}'
+
     # ── Helpers ──────────────────────────────────────────────────────
+    def _record_action(self, text: str, category: str = 'info'):
+        self._incident_actions.append((datetime.now(), text, category))
+
+    @staticmethod
+    def _parse_backup_time(backup_path: str):
+        stem = os.path.basename(backup_path)
+        if stem.endswith('.tar.gz'):
+            stem = stem[:-7]
+        m = re.search(r'(\d{8}_\d{6})$', stem)
+        if not m:
+            return None
+        try:
+            return datetime.strptime(m.group(1), '%Y%m%d_%H%M%S')
+        except ValueError:
+            return None
+
+    def _get_attack_time(self):
+        if self._attack_detected_at is not None:
+            return self._attack_detected_at
+        flag = os.path.join(_root, 'MAINTENANCE.flag')
+        try:
+            with open(flag) as fh:
+                m = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', fh.readline())
+            if m:
+                return datetime.strptime(m.group(1), '%Y-%m-%d %H:%M:%S')
+        except (OSError, ValueError):
+            pass
+        return None
+
     def _log(self, msg: str):
         ts   = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         line = f'[{ts}]  {msg}'
@@ -1558,12 +1687,19 @@ class DefenderApp:
         self._clock_var.set(datetime.now().strftime('%H:%M:%S  %d/%m/%Y'))
         if self._active_panel == 'backup' and hasattr(self, '_next_bk_lbl'):
             self._next_bk_lbl.config(text=self._next_backup_str())
+        if self._active_panel == 'dashboard':
+            if hasattr(self, '_dash_bk_next_var'):
+                self._dash_bk_next_var.set(self._next_backup_str())
+            if hasattr(self, '_dash_bk_last_var'):
+                self._dash_bk_last_var.set(self._last_backup_display())
         # Pulse the dot on dashboard live feed
         if self._active_panel == 'dashboard' and hasattr(self, '_attack_status_dot'):
             if self._attack_status_dot.winfo_exists():
                 color = '#f87171' if self._under_attack else '#4ade80'
                 cur = self._attack_status_dot.cget('fg')
                 self._attack_status_dot.config(fg='#0d1117' if cur == color else color)
+        if self._active_panel == 'timeline':
+            self._redraw_timeline()
         self.root.after(1000, self._tick)
 
     def run(self):
