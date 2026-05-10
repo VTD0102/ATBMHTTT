@@ -1,8 +1,0 @@
-order_id,customer_id,product,quantity,unit_price,total,date,status
-ORD-001,1,Laptop Dell XPS 15,2,22500000,45000000,2024-01-15,Delivered
-ORD-002,2,iPhone 15 Pro Max,1,12500000,12500000,2024-01-22,Delivered
-ORD-003,3,Samsung Galaxy S24,1,8750000,8750000,2024-02-03,Delivered
-ORD-004,1,AirPods Pro 2,3,4500000,13500000,2024-02-18,Processing
-ORD-005,4,MacBook Air M3,1,28000000,28000000,2024-03-05,Shipped
-ORD-006,2,iPad Pro 12.9,2,19000000,38000000,2024-03-12,Delivered
-ORD-007,5,Logitech MX Keys,4,1800000,7200000,2024-03-28,Processing

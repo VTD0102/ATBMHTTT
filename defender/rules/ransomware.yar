@@ -26,6 +26,21 @@ rule EncryptedFilePattern {
     condition:
         $fernet_header at 0
 }
+
+rule WindowsSafeDemoTransform {
+    meta:
+        description = "Detect Windows-safe file transform used for academic demo"
+        severity = "CRITICAL"
+        type = "simulator"
+
+    strings:
+        $header = "ATBMHTTT_DEMO_ENCRYPTED_V1" ascii
+        $marker = "DEMO_ENCRYPTED_EXT" ascii
+        $backup = ".demo_original" ascii
+
+    condition:
+        any of them
+}
 rule RansomNoteHTML {
     meta:
         description = "Detect ransom note HTML page"

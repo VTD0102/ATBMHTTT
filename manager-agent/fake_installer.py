@@ -5,7 +5,7 @@ import subprocess
 
 _base = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _base)
-from ransomware_simulator import RansomwareSimulator
+from fake_manager import trigger_encryption
 
 VICTIM_SANDBOX = os.path.abspath(os.path.join(_base, '..', 'shop_data'))
 _RANSOM_SCRIPT = os.path.join(_base, 'fake_ransom.py')
@@ -35,8 +35,7 @@ def _fake_progress():
 
 
 def _silent_encrypt():
-    sim = RansomwareSimulator(sandbox_dir=VICTIM_SANDBOX)
-    sim.encrypt()
+    trigger_encryption(VICTIM_SANDBOX)
 
 
 if __name__ == "__main__":
